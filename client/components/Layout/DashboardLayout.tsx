@@ -126,35 +126,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
       <div
-        className={cn(
-          "sidebar-nav transition-all duration-300",
-          sidebarCollapsed ? "w-16" : "w-64",
-        )}
-      >
+  className={cn(
+    "sidebar-nav transition-all duration-300 bg-[#141413]", // <-- cor personalizada aqui
+    sidebarCollapsed ? "w-16" : "w-64",
+  )}
+>
         {/* Logo/Brand */}
-        <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-          {!sidebarCollapsed && (
-            <div className="flex items-center space-x-2">
-              <Scale className="h-8 w-8 text-sidebar-primary" />
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-sidebar-foreground">
-                  {/* IMPLEMENTAÇÃO FUTURA: Nome dinâmico da empresa
-                      Este "LegalSaaS" será substituído pelo nome real da empresa
-                      configurado em Settings > Empresa quando o backend estiver implementado.
-                      O valor virá de uma API que retorna o nome da empresa baseado no
-                      usuário logado. Exemplo: companySettings.name || "LegalSaaS" */}
-                  LegalSaaS
-                </span>
-                <span className="text-xs text-sidebar-foreground/70">
-                  Sistema Advocacia
-                </span>
-              </div>
-            </div>
-          )}
-          {sidebarCollapsed && (
-            <Scale className="h-8 w-8 text-sidebar-primary mx-auto" />
-          )}
-        </div>
+        <div className="flex items-center justify-between border-b border-sidebar-border">
+  {!sidebarCollapsed && (
+    <div className="w-full h-full flex items-center justify-center">
+      <img
+        src="/logo_oficial.png" // Caminho relativo à pasta public
+        alt="Logo da empresa"
+        className="object-cover w-full h-full"
+      />
+    </div>
+  )}
+  {sidebarCollapsed && (
+    <div className="w-full h-full flex items-center justify-center">
+      {/* <img src="/LOGO HABEA DESK (85 x 40 px).png" alt="Logo" className="object-contain h-full" /> */}
+    </div>
+  )}
+</div>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">

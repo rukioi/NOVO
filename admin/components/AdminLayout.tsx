@@ -61,7 +61,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex items-center justify-center p-6 border-b border-slate-700">
           <Shield className="h-8 w-8 text-blue-400 mr-3" />
           <div>
-            <h1 className="text-xl font-bold">LegalSaaS</h1>
+            <h1 className="text-xl font-bold">Habea Desk</h1>
             <p className="text-xs text-slate-400">Admin Panel</p>
           </div>
         </div>

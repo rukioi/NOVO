@@ -175,7 +175,7 @@ export function Login() {
           <div className="flex items-center justify-center mb-4">
             <Scale className="h-12 w-12 text-blue-600 mr-3" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">LegalSaaS</h1>
+              <h1 className="text-3xl font-bold text-gray-900">HABEA DESK</h1>
               <p className="text-gray-600">Sistema para Escritórios de Advocacia</p>
             </div>
           </div>
@@ -452,7 +452,7 @@ export function Login() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-600">
-          <p>© 2024 LegalSaaS. Sistema profissional para escritórios de advocacia.</p>
+          <p>© 2024 HABEA DESK. Sistema profissional para escritórios de advocacia.</p>
           <div className="mt-2 space-x-4">
             <Link to="/privacy" className="hover:text-gray-800">Privacidade</Link>
             <Link to="/terms" className="hover:text-gray-800">Termos de Uso</Link>
