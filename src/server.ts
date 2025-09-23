@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createApp } from './app';
 
-const PORT = parseInt(process.env.PORT || '4000', 10);
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 async function startServer() {
   try {
@@ -9,7 +9,7 @@ async function startServer() {
     const app = createApp();
 
     // Start server
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, 'localhost', () => {
       console.log(`🚀 SaaS Backend Server running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🔧 API Base URL: http://localhost:${PORT}/api`);

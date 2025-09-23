@@ -15,11 +15,23 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Frontend"
+args = "Backend"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Backend"
+args = "Frontend"
+
+[[workflows.workflow]]
+name = "Backend"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev:backend"
+waitForPort = 3000
 
 [[workflows.workflow]]
 name = "Frontend"
@@ -33,17 +45,10 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
-[[workflows.workflow]]
-name = "Backend"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev:backend"
-waitForPort = 4000
-
-[workflows.workflow.metadata]
-outputType = "console"
+[[ports]]
+localPort = 3000
+externalPort = 3000
+exposeLocalhost = true
 
 [[ports]]
 localPort = 4000
