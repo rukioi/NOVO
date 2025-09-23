@@ -312,6 +312,16 @@ class ApiService {
     return this.request('/invoices/stats/overview');
   }
 
+  // Dashboard - Recent Activity
+  async getRecentActivity(limit: number = 10) {
+    return this.request(`/dashboard/recent-activity?limit=${limit}`);
+  }
+
+  // Dashboard - Chart Data
+  async getChartData(period: string = '30d') {
+    return this.request(`/dashboard/chart-data?period=${period}`);
+  }
+
   // Notifications
   async getNotifications(params: any = {}) {
     const query = new URLSearchParams(params).toString();

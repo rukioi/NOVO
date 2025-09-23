@@ -12,22 +12,15 @@
   },
   "scripts": {
     "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "dev:backend": "tsx watch src/server.ts",
     "build:backend": "tsc -p tsconfig.server.json",
-    "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build",
-    "build:server": "vite build --config vite.config.server.ts",
-    "start": "node dist/server/node-build.mjs",
     "start:backend": "node dist/server.js",
-    "test": "vitest --run",
-    "test:api": "node scripts/test-endpoints.js",
-    "setup:admin": "node scripts/create-admin-key.js",
-    "db:generate": "npx prisma generate",
-    "db:migrate": "npx prisma migrate dev",
-    "db:deploy": "npx prisma migrate deploy",
-    "db:studio": "npx prisma studio",
-    "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "build:full": "npm run build:backend && npm run build",
+    "start": "npm run start:backend",
+    "db:init": "node scripts/init-database.js",
+    "db:test": "node scripts/test-connection.js"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",

@@ -496,7 +496,23 @@ export class TenantDatabase {
   }
 
   async query<T = any>(query: string, params: any[] = []): Promise<T[]> {
-    return this.executeInTenantSchema<T>(query, params);
+    try {
+      // Use raw SQL execution for complex queries
+      const { data, error } = await (supabaseAdmin || supabase).rpc('execute_sql', {
+        query_text: query,
+        params: params
+      });
+
+      if (error) {
+        console.error('Error executing query:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error executing query:', error);
+      throw error;
+    }
   }
 
   async create<T = any>(table: string, data: any): Promise<T> {
