@@ -245,7 +245,8 @@ BEGIN
             created_by uuid,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now(),
-            is_active boolean DEFAULT true
+            is_active boolean DEFAULT true,
+            CONSTRAINT fk_projects_client FOREIGN KEY (client_id) REFERENCES %I.clients(id) ON DELETE SET NULL
         );
 
         -- Tasks table
@@ -257,9 +258,9 @@ BEGIN
             project_title text,
             client_id uuid,
             client_name text,
-            assigned_to text,
-            status text DEFAULT ''not_started'',
-            priority text DEFAULT ''medium'',
+            assigned_to text NOT NULL,
+            status text DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed', 'on_hold', 'cancelled')),
+            priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
             progress integer DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
             start_date date,
             end_date date,
@@ -268,17 +269,19 @@ BEGIN
             actual_hours decimal(5,2),
             tags text[] DEFAULT ARRAY[]::text[],
             notes text,
-            subtasks jsonb DEFAULT ''[]'',
-            created_by uuid,
+            subtasks jsonb DEFAULT '[]',
+            created_by uuid NOT NULL,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now(),
-            is_active boolean DEFAULT true
+            is_active boolean DEFAULT true,
+            CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES %I.projects(id) ON DELETE SET NULL,
+            CONSTRAINT fk_tasks_client FOREIGN KEY (client_id) REFERENCES %I.clients(id) ON DELETE SET NULL
         );
 
         -- Transactions table (Cash Flow)
         CREATE TABLE IF NOT EXISTS %I.transactions (
             id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            type text CHECK (type IN (''income'', ''expense'')),
+            type text CHECK (type IN ('income', 'expense')),
             amount decimal(15,2) NOT NULL,
             category_id text,
             category text,
@@ -297,7 +300,9 @@ BEGIN
             created_by uuid,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now(),
-            is_active boolean DEFAULT true
+            is_active boolean DEFAULT true,
+            CONSTRAINT fk_transactions_project FOREIGN KEY (project_id) REFERENCES %I.projects(id) ON DELETE SET NULL,
+            CONSTRAINT fk_transactions_client FOREIGN KEY (client_id) REFERENCES %I.clients(id) ON DELETE SET NULL
         );
 
         -- Invoices table
@@ -322,7 +327,8 @@ BEGIN
             created_by uuid,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now(),
-            is_active boolean DEFAULT true
+            is_active boolean DEFAULT true,
+            CONSTRAINT fk_invoices_client FOREIGN KEY (client_id) REFERENCES %I.clients(id) ON DELETE SET NULL
         );
 
         -- Publications table (user-isolated)
@@ -341,18 +347,29 @@ BEGIN
             notes text,
             created_at timestamptz DEFAULT now(),
             updated_at timestamptz DEFAULT now(),
-            UNIQUE(user_id, external_id)
+            UNIQUE(user_id, external_id),
+            CONSTRAINT fk_publications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
         -- Create indexes for performance
         CREATE INDEX IF NOT EXISTS idx_%1$s_clients_created_by ON %I.clients(created_by);
         CREATE INDEX IF NOT EXISTS idx_%1$s_projects_client_id ON %I.projects(client_id);
+        CREATE INDEX IF NOT EXISTS idx_%1$s_tasks_created_by ON %I.tasks(created_by);
         CREATE INDEX IF NOT EXISTS idx_%1$s_tasks_project_id ON %I.tasks(project_id);
-        CREATE INDEX IF NOT EXISTS idx_%1$s_tasks_assigned_to ON %I.tasks(assigned_to);
-        CREATE INDEX IF NOT EXISTS idx_%1$s_transactions_date ON %I.transactions(date);
+        CREATE INDEX IF NOT EXISTS idx_%1$s_tasks_client_id ON %I.tasks(client_id);
+        CREATE INDEX IF NOT EXISTS idx_%1$s_transactions_created_by ON %I.transactions(created_by);
         CREATE INDEX IF NOT EXISTS idx_%1$s_publications_user_id ON %I.publications(user_id);
 
-    ', schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name);
+        -- Indexes for tasks table
+        CREATE INDEX IF NOT EXISTS idx_tasks_status ON %I.tasks(status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_priority ON %I.tasks(priority);
+        CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON %I.tasks(assigned_to);
+        CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON %I.tasks(project_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_client_id ON %I.tasks(client_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON %I.tasks(created_at);
+        CREATE INDEX IF NOT EXISTS idx_tasks_active ON %I.tasks(is_active);
+
+    ', schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name, schema_name);
 
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -379,13 +396,13 @@ RETURNS void AS $$
 BEGIN
     -- Clean audit logs older than 7 days
     DELETE FROM audit_logs WHERE created_at < now() - interval '7 days';
-    
+
     -- Clean usage logs older than 30 days
     DELETE FROM usage_logs WHERE created_at < now() - interval '30 days';
-    
+
     -- Clean expired registration keys
     DELETE FROM registration_keys WHERE expires_at < now() AND revoked = true;
-    
+
     -- Clean inactive refresh tokens
     DELETE FROM refresh_tokens WHERE expires_at < now() OR is_active = false;
 END;

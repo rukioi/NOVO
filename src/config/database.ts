@@ -215,162 +215,20 @@ export class Database {
       // Criar o schema
       await this.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 
-      // Criar tabelas básicas no schema do tenant
-      const tables = [
-        // Clientes
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".clients (
-          id VARCHAR PRIMARY KEY DEFAULT 'client_' || EXTRACT(EPOCH FROM NOW())::BIGINT || '_' || SUBSTR(md5(random()::text), 1, 8),
-          name VARCHAR NOT NULL,
-          email VARCHAR NOT NULL,
-          phone VARCHAR,
-          organization VARCHAR,
-          address JSONB DEFAULT '{}',
-          budget DECIMAL(15,2),
-          currency VARCHAR(3) DEFAULT 'BRL',
-          status VARCHAR DEFAULT 'active',
-          tags JSONB DEFAULT '[]',
-          notes TEXT,
-          cpf VARCHAR,
-          rg VARCHAR,
-          professional_title VARCHAR,
-          marital_status VARCHAR,
-          birth_date DATE,
-          created_by VARCHAR NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE
-        )`,
+      // As tabelas já são criadas pela função create_tenant_schema
+      // Vamos apenas verificar se foram criadas corretamente
+      const verifyQuery = `
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = '${schemaName}' 
+        AND table_type = 'BASE TABLE'
+      `;
 
-        // Projetos
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".projects (
-          id VARCHAR PRIMARY KEY,
-          title VARCHAR NOT NULL,
-          description TEXT,
-          client_name VARCHAR NOT NULL,
-          client_id VARCHAR,
-          organization VARCHAR,
-          address TEXT,
-          budget DECIMAL(15,2),
-          currency VARCHAR(3) DEFAULT 'BRL',
-          status VARCHAR DEFAULT 'contacted',
-          priority VARCHAR DEFAULT 'medium',
-          start_date DATE,
-          due_date DATE,
-          tags JSONB DEFAULT '[]',
-          assigned_to JSONB DEFAULT '[]',
-          notes TEXT,
-          contacts JSONB DEFAULT '[]',
-          created_by VARCHAR NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE
-        )`,
+      const { data: tables } = await (supabaseAdmin || supabase).rpc('execute_sql', {
+        query_text: verifyQuery
+      });
 
-        // Tarefas
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".tasks (
-          id VARCHAR PRIMARY KEY,
-          title VARCHAR NOT NULL,
-          description TEXT,
-          project_id VARCHAR,
-          project_title VARCHAR,
-          client_id VARCHAR,
-          client_name VARCHAR,
-          assigned_to VARCHAR NOT NULL,
-          status VARCHAR DEFAULT 'not_started',
-          priority VARCHAR DEFAULT 'medium',
-          start_date TIMESTAMP,
-          end_date TIMESTAMP,
-          estimated_hours DECIMAL(5,2),
-          actual_hours DECIMAL(5,2),
-          progress INTEGER DEFAULT 0,
-          tags JSONB DEFAULT '[]',
-          notes TEXT,
-          subtasks JSONB DEFAULT '[]',
-          created_by VARCHAR NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE
-        )`,
-
-        // Transações (apenas para COMPOSTA e GERENCIAL)
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".transactions (
-          id VARCHAR PRIMARY KEY,
-          type VARCHAR NOT NULL CHECK (type IN ('income', 'expense')),
-          amount DECIMAL(15,2) NOT NULL,
-          category_id VARCHAR NOT NULL,
-          category VARCHAR NOT NULL,
-          description VARCHAR NOT NULL,
-          date DATE NOT NULL,
-          payment_method VARCHAR CHECK (payment_method IN ('pix', 'credit_card', 'debit_card', 'bank_transfer', 'boleto', 'cash', 'check')),
-          status VARCHAR DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-          project_id VARCHAR,
-          project_title VARCHAR,
-          client_id VARCHAR,
-          client_name VARCHAR,
-          tags JSONB DEFAULT '[]',
-          notes TEXT,
-          is_recurring BOOLEAN DEFAULT FALSE,
-          recurring_frequency VARCHAR CHECK (recurring_frequency IN ('monthly', 'quarterly', 'yearly')),
-          created_by VARCHAR NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE
-        )`,
-
-        // Faturas (apenas para COMPOSTA e GERENCIAL)
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".invoices (
-          id VARCHAR PRIMARY KEY,
-          number VARCHAR NOT NULL UNIQUE,
-          title VARCHAR NOT NULL,
-          description TEXT,
-          client_id VARCHAR,
-          client_name VARCHAR NOT NULL,
-          client_email VARCHAR,
-          client_phone VARCHAR,
-          amount DECIMAL(15,2) NOT NULL,
-          currency VARCHAR(3) DEFAULT 'BRL',
-          status VARCHAR DEFAULT 'draft',
-          due_date DATE NOT NULL,
-          items JSONB DEFAULT '[]',
-          tags JSONB DEFAULT '[]',
-          notes TEXT,
-          payment_status VARCHAR DEFAULT 'pending',
-          payment_method VARCHAR,
-          payment_date DATE,
-          email_sent BOOLEAN DEFAULT FALSE,
-          email_sent_at TIMESTAMP,
-          reminders_sent INTEGER DEFAULT 0,
-          last_reminder_at TIMESTAMP,
-          created_by VARCHAR NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE
-        )`,
-
-        // Publicações (isolado por usuário)
-        `CREATE TABLE IF NOT EXISTS "${schemaName}".publications (
-          id VARCHAR PRIMARY KEY,
-          user_id VARCHAR NOT NULL,
-          oab_number VARCHAR NOT NULL,
-          process_number VARCHAR,
-          publication_date DATE NOT NULL,
-          content TEXT NOT NULL,
-          source VARCHAR NOT NULL CHECK (source IN ('CNJ-DATAJUD', 'Codilo', 'JusBrasil')),
-          external_id VARCHAR,
-          status VARCHAR DEFAULT 'novo' CHECK (status IN ('novo', 'lido', 'arquivado')),
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW(),
-          is_active BOOLEAN DEFAULT TRUE,
-          UNIQUE(user_id, external_id)
-        )`
-      ];
-
-      // Executar criação de cada tabela
-      for (const tableSQL of tables) {
-        await this.query(tableSQL);
-      }
-
-      console.log(`Schema ${schemaName} created successfully with all tables`);
+      console.log(`Tables created in schema ${schemaName}:`, tables?.map(t => t.result?.table_name));
     } catch (error) {
       console.error(`Error creating tenant schema ${schemaName}:`, error);
       throw error;
@@ -619,9 +477,18 @@ export class TenantDatabase {
 
       console.log(`Executing query in schema ${schemaName}:`, finalQuery);
 
-      // For now, return mock data since we need to implement proper schema switching
-      // This would need to be implemented with proper SQL execution
-      return [] as T[];
+      // Use Supabase RPC to execute raw SQL queries
+      const { data, error } = await (supabaseAdmin || supabase).rpc('execute_sql', {
+        query_text: finalQuery,
+        params: params
+      });
+
+      if (error) {
+        console.error(`Error executing query in schema ${schemaName}:`, error);
+        throw error;
+      }
+
+      return data || [];
     } catch (error) {
       console.error('Error executing tenant query:', error);
       throw error;

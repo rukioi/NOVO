@@ -80,6 +80,8 @@ export class TasksService {
   // Listar tarefas do tenant
   async getTasks(tenantId: string, limit: number = 50, offset: number = 0): Promise<{ tasks: Task[]; total: number }> {
     try {
+      // Garantir que a tabela existe
+      await this.initializeTables(tenantId);
       // Query para buscar tarefas
       const tasksQuery = `
         SELECT * FROM \${schema}.tasks 
@@ -130,6 +132,8 @@ export class TasksService {
   // Criar nova tarefa
   async createTask(tenantId: string, taskData: Partial<Task>): Promise<Task> {
     try {
+      // Garantir que a tabela existe
+      await this.initializeTables(tenantId);
       const id = `task_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const now = new Date().toISOString();
       
