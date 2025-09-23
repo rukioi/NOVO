@@ -522,5 +522,3 @@ export const tenantDB = {
     return db.executeInTenantSchema<T>(query, params);
   }
 };
-
-export { TenantDatabase };
