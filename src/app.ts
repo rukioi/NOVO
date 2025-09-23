@@ -12,6 +12,7 @@ import invoicesRoutes from './routes/invoices';
 import adminRoutes from './routes/admin';
 import adminAuthRoutes from './routes/adminAuth';
 import notificationsRoutes from './routes/notifications';
+import publicationsRoutes from './routes/publications';
 
 export function createApp() {
   const app = express();
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/admin/auth', adminAuthRoutes);
   app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/publications', publicationsRoutes);
 
   // Error handler
   app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

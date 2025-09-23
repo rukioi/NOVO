@@ -70,7 +70,7 @@ export interface ProjectFilters {
   assignedTo?: string[];
 }
 
-export class ProjectsService {
+class ProjectsService {
   private tableName = 'projects';
 
   /**
@@ -78,7 +78,7 @@ export class ProjectsService {
    */
   async initializeTables(tenantId: string): Promise<void> {
     const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS \${schema}.${this.tableName} (
+      CREATE TABLE IF NOT EXISTS ${'${schema}'}.${this.tableName} (
         id VARCHAR PRIMARY KEY,
         title VARCHAR NOT NULL,
         description TEXT,
@@ -102,19 +102,19 @@ export class ProjectsService {
         is_active BOOLEAN DEFAULT TRUE
       )
     `;
-    
+
     await tenantDB.executeInTenantSchema(tenantId, createTableQuery);
-    
+
     // Criar índices para performance
     const createIndexes = [
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_title ON \${schema}.${this.tableName}(title)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_client_name ON \${schema}.${this.tableName}(client_name)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_status ON \${schema}.${this.tableName}(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_priority ON \${schema}.${this.tableName}(priority)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_active ON \${schema}.${this.tableName}(is_active)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_created_by ON \${schema}.${this.tableName}(created_by)`
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_title ON ${'${schema}'}.${this.tableName}(title)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_client_name ON ${'${schema}'}.${this.tableName}(client_name)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_status ON ${'${schema}'}.${this.tableName}(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_priority ON ${'${schema}'}.${this.tableName}(priority)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_active ON ${'${schema}'}.${this.tableName}(is_active)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_created_by ON ${'${schema}'}.${this.tableName}(created_by)`
     ];
-    
+
     for (const indexQuery of createIndexes) {
       await tenantDB.executeInTenantSchema(tenantId, indexQuery);
     }
@@ -135,81 +135,81 @@ export class ProjectsService {
     };
   }> {
     await this.initializeTables(tenantId);
-    
+
     const page = filters.page || 1;
     const limit = filters.limit || 50;
     const offset = (page - 1) * limit;
-    
+
     let whereConditions = ['is_active = TRUE'];
     let queryParams: any[] = [];
     let paramIndex = 1;
-    
+
     // Filtro por status
     if (filters.status) {
       whereConditions.push(`status = $${paramIndex}`);
       queryParams.push(filters.status);
       paramIndex++;
     }
-    
+
     // Filtro por prioridade
     if (filters.priority) {
       whereConditions.push(`priority = $${paramIndex}`);
       queryParams.push(filters.priority);
       paramIndex++;
     }
-    
+
     // Filtro por busca (título ou nome do cliente)
     if (filters.search) {
       whereConditions.push(`(title ILIKE $${paramIndex} OR client_name ILIKE $${paramIndex})`);
       queryParams.push(`%${filters.search}%`);
       paramIndex++;
     }
-    
+
     // Filtro por tags
     if (filters.tags && filters.tags.length > 0) {
       whereConditions.push(`tags ?| $${paramIndex}`);
       queryParams.push(filters.tags);
       paramIndex++;
     }
-    
+
     // Filtro por assigned_to
     if (filters.assignedTo && filters.assignedTo.length > 0) {
       whereConditions.push(`assigned_to ?| $${paramIndex}`);
       queryParams.push(filters.assignedTo);
       paramIndex++;
     }
-    
+
     const whereClause = whereConditions.length > 0 
       ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
-    
+
     // Query para buscar projetos
     const projectsQuery = `
       SELECT 
         id, title, description, client_name, client_id, organization, address,
         budget, currency, status, priority, start_date, due_date, tags,
         assigned_to, notes, contacts, created_by, created_at, updated_at, is_active
-      FROM \${schema}.${this.tableName}
+      FROM ${'${schema}'}.${this.tableName}
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
-    
+
     // Query para contar total
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM \${schema}.${this.tableName}
+      FROM ${'${schema}'}.${this.tableName}
       ${whereClause}
     `;
-    
+
     const [projects, countResult] = await Promise.all([
       tenantDB.executeInTenantSchema<Project>(tenantId, projectsQuery, [...queryParams, limit, offset]),
       tenantDB.executeInTenantSchema<{total: string}>(tenantId, countQuery, queryParams)
     ]);
-    
+
     const total = parseInt(countResult[0]?.total || '0');
     const totalPages = Math.ceil(total / limit);
-    
+
     return {
       projects,
       pagination: {
@@ -228,16 +228,16 @@ export class ProjectsService {
    */
   async getProjectById(tenantId: string, projectId: string): Promise<Project | null> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
       SELECT 
         id, title, description, client_name, client_id, organization, address,
         budget, currency, status, priority, start_date, due_date, tags,
         assigned_to, notes, contacts, created_by, created_at, updated_at, is_active
-      FROM \${schema}.${this.tableName}
+      FROM ${'${schema}'}.${this.tableName}
       WHERE id = $1 AND is_active = TRUE
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema<Project>(tenantId, query, [projectId]);
     return result[0] || null;
   }
@@ -247,12 +247,12 @@ export class ProjectsService {
    */
   async createProject(tenantId: string, projectData: CreateProjectData, createdBy: string): Promise<Project> {
     await this.initializeTables(tenantId);
-    
+
     // Gerar ID único seguindo o mesmo padrão do tasksService
     const projectId = `project_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     const query = `
-      INSERT INTO \${schema}.${this.tableName} (
+      INSERT INTO ${'${schema}'}.${this.tableName} (
         id, title, description, client_name, client_id, organization, address,
         budget, currency, status, priority, start_date, due_date, tags,
         assigned_to, notes, contacts, created_by
@@ -265,7 +265,7 @@ export class ProjectsService {
         budget, currency, status, priority, start_date, due_date, tags,
         assigned_to, notes, contacts, created_by, created_at, updated_at, is_active
     `;
-    
+
     const params = [
       projectId,
       projectData.title,
@@ -286,7 +286,7 @@ export class ProjectsService {
       JSON.stringify(projectData.contacts || []),
       createdBy
     ];
-    
+
     const result = await tenantDB.executeInTenantSchema<Project>(tenantId, query, params);
     return result[0];
   }
@@ -296,11 +296,11 @@ export class ProjectsService {
    */
   async updateProject(tenantId: string, projectId: string, updateData: UpdateProjectData): Promise<Project | null> {
     await this.initializeTables(tenantId);
-    
+
     const updateFields: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
-    
+
     // Mapeamento dos campos para atualização
     const fieldMappings = {
       title: 'title',
@@ -320,7 +320,7 @@ export class ProjectsService {
       notes: 'notes',
       contacts: 'contacts'
     };
-    
+
     for (const [key, dbField] of Object.entries(fieldMappings)) {
       if (updateData.hasOwnProperty(key)) {
         const value = (updateData as any)[key];
@@ -334,16 +334,16 @@ export class ProjectsService {
         paramIndex++;
       }
     }
-    
+
     if (updateFields.length === 0) {
       throw new Error('No fields to update');
     }
-    
+
     // Adicionar updated_at
     updateFields.push(`updated_at = NOW()`);
-    
+
     const query = `
-      UPDATE \${schema}.${this.tableName}
+      UPDATE ${'${schema}'}.${this.tableName}
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex} AND is_active = TRUE
       RETURNING 
@@ -351,9 +351,9 @@ export class ProjectsService {
         budget, currency, status, priority, start_date, due_date, tags,
         assigned_to, notes, contacts, created_by, created_at, updated_at, is_active
     `;
-    
+
     params.push(projectId);
-    
+
     const result = await tenantDB.executeInTenantSchema<Project>(tenantId, query, params);
     return result[0] || null;
   }
@@ -363,13 +363,13 @@ export class ProjectsService {
    */
   async deleteProject(tenantId: string, projectId: string): Promise<boolean> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
-      UPDATE \${schema}.${this.tableName}
+      UPDATE ${'${schema}'}.${this.tableName}
       SET is_active = FALSE, updated_at = NOW()
       WHERE id = $1 AND is_active = TRUE
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema(tenantId, query, [projectId]);
     return result.length > 0;
   }
@@ -386,7 +386,7 @@ export class ProjectsService {
     thisMonth: number;
   }> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
       SELECT 
         COUNT(*) as total,
@@ -395,13 +395,13 @@ export class ProjectsService {
         COUNT(*) FILTER (WHERE status = 'won') as won,
         COUNT(*) FILTER (WHERE status = 'lost') as lost,
         COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', NOW())) as this_month
-      FROM \${schema}.${this.tableName}
+      FROM ${'${schema}'}.${this.tableName}
       WHERE is_active = TRUE
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema<any>(tenantId, query);
     const stats = result[0];
-    
+
     return {
       total: parseInt(stats.total || '0'),
       contacted: parseInt(stats.contacted || '0'),
