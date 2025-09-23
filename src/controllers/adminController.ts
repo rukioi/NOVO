@@ -24,21 +24,31 @@ export class AdminController {
   async createRegistrationKey(req: Request, res: Response) {
     try {
       const validatedData = createKeySchema.parse(req.body);
-      
       const createdBy = (req as any).user?.id || 'admin';
 
-      // Generate a simple key for development
-      const key = `REG-${validatedData.accountType}-${Date.now()}`;
+      // Usar o serviço real para gerar a chave
+      const { registrationKeyService } = await import('../services/registrationKeyService');
+      
+      const expiresAt = validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined;
+      
+      const key = await registrationKeyService.generateKey({
+        tenantId: validatedData.tenantId,
+        accountType: validatedData.accountType,
+        usesAllowed: validatedData.usesAllowed || 1,
+        expiresAt,
+        singleUse: validatedData.singleUse ?? true,
+        metadata: validatedData.metadata || {},
+      }, createdBy);
 
       res.status(201).json({
         message: 'Registration key created successfully',
         key, // Return the plain key only once
         metadata: {
-          id: 'key-' + Date.now(),
           accountType: validatedData.accountType,
-          usesAllowed: validatedData.usesAllowed,
-          singleUse: validatedData.singleUse,
+          usesAllowed: validatedData.usesAllowed || 1,
+          singleUse: validatedData.singleUse ?? true,
           expiresAt: validatedData.expiresAt,
+          tenantId: validatedData.tenantId,
         },
       });
     } catch (error) {
@@ -53,23 +63,25 @@ export class AdminController {
     try {
       const tenantId = req.query.tenantId as string;
       
-      // Mock keys for development
-      const mockKeys = [
-        {
-          id: 'key-1',
-          accountType: 'GERENCIAL',
-          usesAllowed: 1,
-          usesLeft: 1,
-          singleUse: true,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          revoked: false,
-          createdAt: new Date().toISOString(),
-          tenant: null,
-          usageCount: 0,
-        }
-      ];
+      const { registrationKeyService } = await import('../services/registrationKeyService');
+      const keys = await registrationKeyService.listKeys(tenantId);
+      
+      // Mapear para formato esperado pelo frontend
+      const formattedKeys = keys.map(key => ({
+        id: key.id,
+        accountType: key.account_type,
+        usesAllowed: key.uses_allowed,
+        usesLeft: key.uses_left,
+        singleUse: key.single_use,
+        expiresAt: key.expires_at,
+        revoked: key.revoked,
+        createdAt: key.created_at,
+        tenant: key.tenant_id ? { id: key.tenant_id } : null,
+        usageCount: key.uses_allowed - key.uses_left,
+        metadata: key.metadata,
+      }));
 
-      res.json({ keys: mockKeys });
+      res.json({ keys: formattedKeys });
     } catch (error) {
       console.error('Get registration keys error:', error);
       res.status(500).json({
@@ -81,6 +93,9 @@ export class AdminController {
   async revokeRegistrationKey(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      
+      const { registrationKeyService } = await import('../services/registrationKeyService');
+      await registrationKeyService.revokeKey(id);
       
       res.json({
         message: 'Registration key revoked successfully',
@@ -96,28 +111,63 @@ export class AdminController {
   // Tenant Management
   async getTenants(req: Request, res: Response) {
     try {
-      // Mock tenants for development
-      const mockTenants = [
-        {
-          id: 'tenant-1',
-          name: 'Law Firm Demo',
-          schemaName: 'tenant_demo',
-          planType: 'premium',
-          isActive: true,
-          maxUsers: 10,
-          userCount: 3,
-          createdAt: new Date().toISOString(),
-          stats: {
-            clients: 25,
-            projects: 8,
-            tasks: 42,
-            transactions: 15,
-            invoices: 12,
-          },
-        }
-      ];
+      const tenants = await database.getAllTenants();
+      
+      // Buscar estatísticas de cada tenant
+      const tenantsWithStats = await Promise.all(
+        tenants.map(async (tenant) => {
+          let stats = {
+            clients: 0,
+            projects: 0,
+            tasks: 0,
+            transactions: 0,
+            invoices: 0,
+          };
 
-      res.json({ tenants: mockTenants });
+          try {
+            // Buscar estatísticas reais do tenant (se schema existir)
+            const statsQuery = `
+              SELECT 
+                COALESCE((SELECT COUNT(*) FROM \${schema}.clients WHERE is_active = true), 0) as clients,
+                COALESCE((SELECT COUNT(*) FROM \${schema}.projects WHERE is_active = true), 0) as projects,
+                COALESCE((SELECT COUNT(*) FROM \${schema}.tasks WHERE is_active = true), 0) as tasks,
+                COALESCE((SELECT COUNT(*) FROM \${schema}.transactions WHERE is_active = true), 0) as transactions,
+                COALESCE((SELECT COUNT(*) FROM \${schema}.invoices WHERE is_active = true), 0) as invoices
+            `;
+            
+            const { TenantDatabase } = await import('../config/database');
+            const tenantDB = new TenantDatabase(tenant.id);
+            const result = await tenantDB.query(statsQuery.replace('${schema}', tenant.schema_name));
+            
+            if (result && result[0]) {
+              stats = {
+                clients: parseInt(result[0].clients || '0'),
+                projects: parseInt(result[0].projects || '0'),
+                tasks: parseInt(result[0].tasks || '0'),
+                transactions: parseInt(result[0].transactions || '0'),
+                invoices: parseInt(result[0].invoices || '0'),
+              };
+            }
+          } catch (statsError) {
+            console.warn(`Error fetching stats for tenant ${tenant.id}:`, statsError);
+            // Manter stats zerados se houver erro
+          }
+
+          return {
+            id: tenant.id,
+            name: tenant.name,
+            schemaName: tenant.schema_name,
+            planType: tenant.plan_type,
+            isActive: tenant.is_active,
+            maxUsers: tenant.max_users,
+            userCount: 0, // TODO: implementar contagem real de usuários
+            createdAt: tenant.created_at,
+            stats,
+          };
+        })
+      );
+
+      res.json({ tenants: tenantsWithStats });
     } catch (error) {
       console.error('Get tenants error:', error);
       res.status(500).json({
@@ -130,27 +180,51 @@ export class AdminController {
     try {
       const validatedData = createTenantSchema.parse(req.body);
       
-      const mockTenant = {
-        id: 'tenant-' + Date.now(),
+      // Gerar schema name único
+      const schemaName = `tenant_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      
+      // Criar tenant no banco
+      const tenantData = {
         name: validatedData.name,
-        schemaName: `tenant_${Date.now()}`,
-        planType: validatedData.planType,
-        isActive: true,
-        maxUsers: validatedData.maxUsers,
-        userCount: 0,
-        createdAt: new Date().toISOString(),
-        stats: {
-          clients: 0,
-          projects: 0,
-          tasks: 0,
-          transactions: 0,
-          invoices: 0,
-        },
+        schema_name: schemaName,
+        plan_type: validatedData.planType || 'basic',
+        is_active: true,
+        max_users: validatedData.maxUsers || 5,
+        max_storage: validatedData.maxStorage || 1073741824, // 1GB
       };
+
+      const tenant = await database.createTenant(tenantData);
+
+      // Criar schema e tabelas para o tenant
+      try {
+        await database.createTenantSchema(tenant.schema_name);
+        console.log(`Schema created for tenant: ${tenant.schema_name}`);
+      } catch (schemaError) {
+        console.error('Error creating tenant schema:', schemaError);
+        // Se falhou ao criar schema, remover o tenant criado
+        await database.deleteTenant(tenant.id);
+        throw new Error('Failed to create tenant schema');
+      }
 
       res.status(201).json({
         message: 'Tenant created successfully',
-        tenant: mockTenant,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          schemaName: tenant.schema_name,
+          planType: tenant.plan_type,
+          isActive: tenant.is_active,
+          maxUsers: tenant.max_users,
+          userCount: 0,
+          createdAt: tenant.created_at,
+          stats: {
+            clients: 0,
+            projects: 0,
+            tasks: 0,
+            transactions: 0,
+            invoices: 0,
+          },
+        },
       });
     } catch (error) {
       console.error('Create tenant error:', error);
@@ -212,31 +286,57 @@ export class AdminController {
   // Global Metrics
   async getGlobalMetrics(req: Request, res: Response) {
     try {
-      // Mock metrics for development
-      const mockMetrics = {
+      // Métricas reais do banco
+      const [tenants, users, registrationKeys] = await Promise.all([
+        database.getAllTenants(),
+        database.getAllUsers(),
+        database.getAllRegistrationKeys()
+      ]);
+
+      // Contar tenants ativos
+      const activeTenants = tenants.filter(t => t.is_active).length;
+      
+      // Agrupar chaves de registro por tipo de conta
+      const keysByType = registrationKeys.reduce((acc, key) => {
+        const type = key.account_type;
+        const existing = acc.find(item => item.accountType === type);
+        if (existing) {
+          existing.count++;
+        } else {
+          acc.push({ accountType: type, count: 1 });
+        }
+        return acc;
+      }, [] as { accountType: string; count: number }[]);
+
+      // Atividade recente (últimos registros de tenants e usuários)
+      const recentActivity = [
+        ...tenants.slice(-3).map(tenant => ({
+          id: tenant.id,
+          level: 'info' as const,
+          message: `Tenant "${tenant.name}" created`,
+          createdAt: tenant.created_at,
+        })),
+        ...users.slice(-3).map(user => ({
+          id: user.id,
+          level: 'info' as const,
+          message: `User "${user.name}" registered`,
+          createdAt: user.created_at,
+        }))
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+
+      const metrics = {
         tenants: {
-          total: 5,
-          active: 4,
+          total: tenants.length,
+          active: activeTenants,
         },
         users: {
-          total: 47,
+          total: users.length,
         },
-        registrationKeys: [
-          { accountType: 'SIMPLES', count: 3 },
-          { accountType: 'COMPOSTA', count: 2 },
-          { accountType: 'GERENCIAL', count: 1 },
-        ],
-        recentActivity: [
-          {
-            id: '1',
-            level: 'info',
-            message: 'System started successfully',
-            createdAt: new Date().toISOString(),
-          },
-        ],
+        registrationKeys: keysByType,
+        recentActivity,
       };
 
-      res.json(mockMetrics);
+      res.json(metrics);
     } catch (error) {
       console.error('Get global metrics error:', error);
       res.status(500).json({

@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pdsgfvjhtunnzvtlrihw.supabase.co';
@@ -70,7 +69,7 @@ export class Database {
         .select('*')
         .eq('email', email)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         console.error('Error finding admin by email:', error);
         return null;
@@ -89,7 +88,7 @@ export class Database {
         .insert(userData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -104,7 +103,7 @@ export class Database {
         .from('admin_users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error updating admin last login:', error);
@@ -123,7 +122,7 @@ export class Database {
         `)
         .eq('email', email)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         console.error('Error finding user by email:', error);
         return null;
@@ -145,7 +144,7 @@ export class Database {
           tenant:tenants(*)
         `)
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -160,7 +159,7 @@ export class Database {
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error updating user last login:', error);
@@ -170,18 +169,11 @@ export class Database {
 
   // Tenant operations
   async getAllTenants() {
-    try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error getting all tenants:', error);
-      return [];
-    }
+    return await this.query('SELECT * FROM tenants ORDER BY created_at DESC');
+  }
+
+  async getAllUsers() {
+    return await this.query('SELECT id, email, name, account_type, tenant_id, is_active, created_at FROM users ORDER BY created_at DESC');
   }
 
   async createTenant(tenantData: any) {
@@ -191,7 +183,7 @@ export class Database {
         .insert(tenantData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -200,19 +192,187 @@ export class Database {
     }
   }
 
-  async updateTenant(id: string, updateData: any) {
+  async updateTenant(id: string, data: any) {
+    const result = await this.query(`
+      UPDATE tenants 
+      SET name = COALESCE($1, name), 
+          plan_type = COALESCE($2, plan_type),
+          max_users = COALESCE($3, max_users),
+          max_storage = COALESCE($4, max_storage),
+          is_active = COALESCE($5, is_active),
+          updated_at = NOW()
+      WHERE id = $6
+      RETURNING *
+    `, [data.name, data.plan_type, data.max_users, data.max_storage, data.is_active, id]);
+
+    return result[0];
+  }
+
+  async createTenantSchema(schemaName: string): Promise<void> {
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      console.log(`Creating schema: ${schemaName}`);
+
+      // Criar o schema
+      await this.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+
+      // Criar tabelas básicas no schema do tenant
+      const tables = [
+        // Clientes
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".clients (
+          id VARCHAR PRIMARY KEY DEFAULT 'client_' || EXTRACT(EPOCH FROM NOW())::BIGINT || '_' || SUBSTR(md5(random()::text), 1, 8),
+          name VARCHAR NOT NULL,
+          email VARCHAR NOT NULL,
+          phone VARCHAR,
+          organization VARCHAR,
+          address JSONB DEFAULT '{}',
+          budget DECIMAL(15,2),
+          currency VARCHAR(3) DEFAULT 'BRL',
+          status VARCHAR DEFAULT 'active',
+          tags JSONB DEFAULT '[]',
+          notes TEXT,
+          cpf VARCHAR,
+          rg VARCHAR,
+          professional_title VARCHAR,
+          marital_status VARCHAR,
+          birth_date DATE,
+          created_by VARCHAR NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE
+        )`,
+
+        // Projetos
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".projects (
+          id VARCHAR PRIMARY KEY,
+          title VARCHAR NOT NULL,
+          description TEXT,
+          client_name VARCHAR NOT NULL,
+          client_id VARCHAR,
+          organization VARCHAR,
+          address TEXT,
+          budget DECIMAL(15,2),
+          currency VARCHAR(3) DEFAULT 'BRL',
+          status VARCHAR DEFAULT 'contacted',
+          priority VARCHAR DEFAULT 'medium',
+          start_date DATE,
+          due_date DATE,
+          tags JSONB DEFAULT '[]',
+          assigned_to JSONB DEFAULT '[]',
+          notes TEXT,
+          contacts JSONB DEFAULT '[]',
+          created_by VARCHAR NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE
+        )`,
+
+        // Tarefas
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".tasks (
+          id VARCHAR PRIMARY KEY,
+          title VARCHAR NOT NULL,
+          description TEXT,
+          project_id VARCHAR,
+          project_title VARCHAR,
+          client_id VARCHAR,
+          client_name VARCHAR,
+          assigned_to VARCHAR NOT NULL,
+          status VARCHAR DEFAULT 'not_started',
+          priority VARCHAR DEFAULT 'medium',
+          start_date TIMESTAMP,
+          end_date TIMESTAMP,
+          estimated_hours DECIMAL(5,2),
+          actual_hours DECIMAL(5,2),
+          progress INTEGER DEFAULT 0,
+          tags JSONB DEFAULT '[]',
+          notes TEXT,
+          subtasks JSONB DEFAULT '[]',
+          created_by VARCHAR NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE
+        )`,
+
+        // Transações (apenas para COMPOSTA e GERENCIAL)
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".transactions (
+          id VARCHAR PRIMARY KEY,
+          type VARCHAR NOT NULL CHECK (type IN ('income', 'expense')),
+          amount DECIMAL(15,2) NOT NULL,
+          category_id VARCHAR NOT NULL,
+          category VARCHAR NOT NULL,
+          description VARCHAR NOT NULL,
+          date DATE NOT NULL,
+          payment_method VARCHAR CHECK (payment_method IN ('pix', 'credit_card', 'debit_card', 'bank_transfer', 'boleto', 'cash', 'check')),
+          status VARCHAR DEFAULT 'confirmed' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+          project_id VARCHAR,
+          project_title VARCHAR,
+          client_id VARCHAR,
+          client_name VARCHAR,
+          tags JSONB DEFAULT '[]',
+          notes TEXT,
+          is_recurring BOOLEAN DEFAULT FALSE,
+          recurring_frequency VARCHAR CHECK (recurring_frequency IN ('monthly', 'quarterly', 'yearly')),
+          created_by VARCHAR NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE
+        )`,
+
+        // Faturas (apenas para COMPOSTA e GERENCIAL)
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".invoices (
+          id VARCHAR PRIMARY KEY,
+          number VARCHAR NOT NULL UNIQUE,
+          title VARCHAR NOT NULL,
+          description TEXT,
+          client_id VARCHAR,
+          client_name VARCHAR NOT NULL,
+          client_email VARCHAR,
+          client_phone VARCHAR,
+          amount DECIMAL(15,2) NOT NULL,
+          currency VARCHAR(3) DEFAULT 'BRL',
+          status VARCHAR DEFAULT 'draft',
+          due_date DATE NOT NULL,
+          items JSONB DEFAULT '[]',
+          tags JSONB DEFAULT '[]',
+          notes TEXT,
+          payment_status VARCHAR DEFAULT 'pending',
+          payment_method VARCHAR,
+          payment_date DATE,
+          email_sent BOOLEAN DEFAULT FALSE,
+          email_sent_at TIMESTAMP,
+          reminders_sent INTEGER DEFAULT 0,
+          last_reminder_at TIMESTAMP,
+          created_by VARCHAR NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE
+        )`,
+
+        // Publicações (isolado por usuário)
+        `CREATE TABLE IF NOT EXISTS "${schemaName}".publications (
+          id VARCHAR PRIMARY KEY,
+          user_id VARCHAR NOT NULL,
+          oab_number VARCHAR NOT NULL,
+          process_number VARCHAR,
+          publication_date DATE NOT NULL,
+          content TEXT NOT NULL,
+          source VARCHAR NOT NULL CHECK (source IN ('CNJ-DATAJUD', 'Codilo', 'JusBrasil')),
+          external_id VARCHAR,
+          status VARCHAR DEFAULT 'novo' CHECK (status IN ('novo', 'lido', 'arquivado')),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          is_active BOOLEAN DEFAULT TRUE,
+          UNIQUE(user_id, external_id)
+        )`
+      ];
+
+      // Executar criação de cada tabela
+      for (const tableSQL of tables) {
+        await this.query(tableSQL);
+      }
+
+      console.log(`Schema ${schemaName} created successfully with all tables`);
     } catch (error) {
-      console.error('Error updating tenant:', error);
+      console.error(`Error creating tenant schema ${schemaName}:`, error);
       throw error;
     }
   }
@@ -223,7 +383,7 @@ export class Database {
         .from('tenants')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error deleting tenant:', error);
@@ -241,7 +401,7 @@ export class Database {
           tenant:tenants(name)
         `)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -257,7 +417,7 @@ export class Database {
         .insert(keyData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -272,7 +432,7 @@ export class Database {
         .from('registration_keys')
         .update({ revoked: true })
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error revoking registration key:', error);
@@ -288,7 +448,7 @@ export class Database {
         .eq('revoked', false)
         .gt('uses_left', 0)
         .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
-      
+
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -303,7 +463,7 @@ export class Database {
         .from('registration_keys')
         .update(updateData)
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error updating registration key usage:', error);
@@ -319,7 +479,7 @@ export class Database {
         .insert(tokenData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -340,7 +500,7 @@ export class Database {
         .eq('is_active', true)
         .gt('expires_at', new Date().toISOString())
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         console.error('Error finding refresh token:', error);
         return null;
@@ -358,7 +518,7 @@ export class Database {
         .from('refresh_tokens')
         .update({ is_active: false })
         .eq('user_id', userId);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error revoking user tokens:', error);
@@ -372,7 +532,7 @@ export class Database {
         .from('refresh_tokens')
         .update({ is_active: false })
         .eq('token_hash', tokenHash);
-      
+
       if (error) throw error;
     } catch (error) {
       console.error('Error revoking refresh token:', error);
@@ -388,7 +548,7 @@ export class Database {
         .insert(logData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -405,7 +565,7 @@ export class Database {
         .insert(logData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     } catch (error) {
@@ -421,7 +581,7 @@ export class Database {
         .from('tenants')
         .select('count')
         .limit(1);
-      
+
       return {
         database: !error,
         timestamp: new Date().toISOString(),
@@ -456,9 +616,9 @@ export class TenantDatabase {
     try {
       const schemaName = `tenant_${this.tenantId}`;
       const finalQuery = query.replace(/\$\{schema\}/g, schemaName);
-      
+
       console.log(`Executing query in schema ${schemaName}:`, finalQuery);
-      
+
       // For now, return mock data since we need to implement proper schema switching
       // This would need to be implemented with proper SQL execution
       return [] as T[];
@@ -476,13 +636,13 @@ export class TenantDatabase {
     const columns = Object.keys(data).join(', ');
     const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
     const values = Object.values(data);
-    
+
     const query = `
       INSERT INTO \${schema}.${table} (${columns})
       VALUES (${placeholders})
       RETURNING *
     `;
-    
+
     const result = await this.executeInTenantSchema<T>(query, values);
     return result[0];
   }
@@ -496,14 +656,14 @@ export class TenantDatabase {
   async update<T = any>(table: string, id: string, data: any): Promise<T> {
     const setClause = Object.keys(data).map((key, i) => `${key} = $${i + 2}`).join(', ');
     const values = [id, ...Object.values(data)];
-    
+
     const query = `
       UPDATE \${schema}.${table}
       SET ${setClause}
       WHERE id = $1
       RETURNING *
     `;
-    
+
     const result = await this.executeInTenantSchema<T>(query, values);
     return result[0];
   }
