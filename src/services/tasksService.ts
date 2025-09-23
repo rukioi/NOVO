@@ -26,6 +26,57 @@ export interface Task {
 }
 
 export class TasksService {
+  private tableName = 'tasks';
+
+  /**
+   * Cria as tabelas necessárias se não existirem
+   */
+  async initializeTables(tenantId: string): Promise<void> {
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS \${schema}.${this.tableName} (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        description TEXT,
+        project_id VARCHAR,
+        project_title VARCHAR,
+        client_id VARCHAR,
+        client_name VARCHAR,
+        assigned_to VARCHAR NOT NULL,
+        status VARCHAR DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed', 'on_hold', 'cancelled')),
+        priority VARCHAR DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+        start_date TIMESTAMP,
+        end_date TIMESTAMP,
+        estimated_hours DECIMAL(5,2),
+        actual_hours DECIMAL(5,2),
+        progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+        tags JSONB DEFAULT '[]',
+        notes TEXT,
+        subtasks JSONB DEFAULT '[]',
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        is_active BOOLEAN DEFAULT TRUE
+      )
+    `;
+    
+    await tenantDB.executeInTenantSchema(tenantId, createTableQuery);
+    
+    // Criar índices para performance
+    const createIndexes = [
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_assigned_to ON \${schema}.${this.tableName}(assigned_to)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_status ON \${schema}.${this.tableName}(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_priority ON \${schema}.${this.tableName}(priority)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_project_id ON \${schema}.${this.tableName}(project_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_client_id ON \${schema}.${this.tableName}(client_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_created_at ON \${schema}.${this.tableName}(created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_active ON \${schema}.${this.tableName}(is_active)`
+    ];
+    
+    for (const indexQuery of createIndexes) {
+      await tenantDB.executeInTenantSchema(tenantId, indexQuery);
+    }
+  }
+
   // Listar tarefas do tenant
   async getTasks(tenantId: string, limit: number = 50, offset: number = 0): Promise<{ tasks: Task[]; total: number }> {
     try {
