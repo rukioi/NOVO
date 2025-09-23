@@ -414,3 +414,226 @@ export class ProjectsService {
 }
 
 export const projectsService = new ProjectsService();
+import { supabase } from '../config/supabase';
+
+export interface ProjectData {
+  title: string;
+  description?: string;
+  clientName: string;
+  clientId?: string;
+  organization?: string;
+  address?: string;
+  budget?: number;
+  currency: 'BRL' | 'USD' | 'EUR';
+  status: 'contacted' | 'proposal' | 'won' | 'lost';
+  startDate: string;
+  dueDate: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  progress: number;
+  tags: string[];
+  assignedTo: string[];
+  contacts: Array<{
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+  }>;
+  notes?: string;
+  createdBy?: string;
+  lastModifiedBy?: string;
+  tenantId: string;
+}
+
+export interface ProjectFilters {
+  search?: string;
+  status?: string;
+  priority?: string;
+}
+
+class ProjectsService {
+  async getProjectsByTenant(
+    tenantId: string, 
+    page: number = 1, 
+    limit: number = 50,
+    filters: ProjectFilters = {}
+  ) {
+    try {
+      let query = supabase
+        .from('projects')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,client_name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      }
+
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply pagination
+      const offset = (page - 1) * limit;
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
+      }
+
+      return {
+        projects: data || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit),
+        },
+      };
+    } catch (error) {
+      console.error('Error in getProjectsByTenant:', error);
+      throw error;
+    }
+  }
+
+  async getProjectById(tenantId: string, projectId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('id', projectId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching project:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in getProjectById:', error);
+      throw error;
+    }
+  }
+
+  async createProject(tenantId: string, projectData: ProjectData) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
+          ...projectData,
+          tenant_id: tenantId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating project:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in createProject:', error);
+      throw error;
+    }
+  }
+
+  async updateProject(tenantId: string, projectId: string, updateData: Partial<ProjectData>) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('tenant_id', tenantId)
+        .eq('id', projectId)
+        .select()
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error updating project:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in updateProject:', error);
+      throw error;
+    }
+  }
+
+  async deleteProject(tenantId: string, projectId: string) {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('tenant_id', tenantId)
+        .eq('id', projectId);
+
+      if (error) {
+        console.error('Error deleting project:', error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in deleteProject:', error);
+      throw error;
+    }
+  }
+
+  async getProjectStats(tenantId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('status, priority, budget')
+        .eq('tenant_id', tenantId);
+
+      if (error) {
+        console.error('Error fetching project stats:', error);
+        throw error;
+      }
+
+      const projects = data || [];
+      
+      const stats = {
+        total: projects.length,
+        byStatus: {
+          contacted: projects.filter(p => p.status === 'contacted').length,
+          proposal: projects.filter(p => p.status === 'proposal').length,
+          won: projects.filter(p => p.status === 'won').length,
+          lost: projects.filter(p => p.status === 'lost').length,
+        },
+        byPriority: {
+          low: projects.filter(p => p.priority === 'low').length,
+          medium: projects.filter(p => p.priority === 'medium').length,
+          high: projects.filter(p => p.priority === 'high').length,
+          urgent: projects.filter(p => p.priority === 'urgent').length,
+        },
+        totalBudget: projects.reduce((sum, p) => sum + (p.budget || 0), 0),
+        averageBudget: projects.length > 0 
+          ? projects.reduce((sum, p) => sum + (p.budget || 0), 0) / projects.length 
+          : 0,
+      };
+
+      return stats;
+    } catch (error) {
+      console.error('Error in getProjectStats:', error);
+      throw error;
+    }
+  }
+}
+
+export const projectsService = new ProjectsService();

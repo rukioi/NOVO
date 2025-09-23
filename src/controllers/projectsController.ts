@@ -1,3 +1,4 @@
+
 import { Response } from 'express';
 import { z } from 'zod';
 import { AuthenticatedRequest } from '../middleware/auth';
@@ -14,18 +15,19 @@ const createProjectSchema = z.object({
   budget: z.number().min(0).optional(),
   currency: z.enum(['BRL', 'USD', 'EUR']).default('BRL'),
   status: z.enum(['contacted', 'proposal', 'won', 'lost']).default('contacted'),
+  startDate: z.string().min(1, 'Start date is required'),
+  dueDate: z.string().min(1, 'Due date is required'),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
-  startDate: z.string().optional(),
-  dueDate: z.string().optional(),
+  progress: z.number().min(0).max(100).default(0),
   tags: z.array(z.string()).default([]),
   assignedTo: z.array(z.string()).default([]),
-  notes: z.string().optional(),
   contacts: z.array(z.object({
     name: z.string(),
-    email: z.string(),
+    email: z.string().email(),
     phone: z.string(),
-    role: z.string(),
+    role: z.string()
   })).default([]),
+  notes: z.string().optional(),
 });
 
 const updateProjectSchema = createProjectSchema.partial();
@@ -37,30 +39,25 @@ export class ProjectsController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      console.log('Fetching projects for tenant:', req.tenantId);
-
-      // Extrair filtros da query
+      const { page = '1', limit = '50', search, status, priority } = req.query;
+      
       const filters = {
-        page: parseInt(req.query.page as string) || 1,
-        limit: parseInt(req.query.limit as string) || 50,
-        status: req.query.status as string,
-        priority: req.query.priority as string,
-        search: req.query.search as string,
-        tags: req.query.tags ? (req.query.tags as string).split(',') : undefined,
-        assignedTo: req.query.assignedTo ? (req.query.assignedTo as string).split(',') : undefined
+        search: search as string,
+        status: status as string,
+        priority: priority as string,
       };
 
-      const result = await projectsService.getProjects(req.tenantId, filters);
-      
-      console.log('Projects fetched successfully:', { count: result.projects.length, total: result.pagination.total });
-      
-      res.json(result);
+      const projects = await projectsService.getProjectsByTenant(
+        req.tenantId,
+        parseInt(page as string),
+        parseInt(limit as string),
+        filters
+      );
+
+      res.json(projects);
     } catch (error) {
-      console.error('Get projects error:', error);
-      res.status(500).json({
-        error: 'Failed to fetch projects',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
+      console.error('Error fetching projects:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -71,29 +68,16 @@ export class ProjectsController {
       }
 
       const { id } = req.params;
-      
-      console.log('Fetching project:', id, 'for tenant:', req.tenantId);
-
       const project = await projectsService.getProjectById(req.tenantId, id);
-      
+
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      console.log('Project fetched successfully:', project.id);
 
-      res.json({
-        project,
-        related: {
-          tasks: [],
-        },
-      });
+      res.json(project);
     } catch (error) {
-      console.error('Get project error:', error);
-      res.status(500).json({
-        error: 'Failed to fetch project',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
+      console.error('Error fetching project:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -103,24 +87,25 @@ export class ProjectsController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      console.log('Creating project for tenant:', req.tenantId, 'by user:', req.user.id);
-
       const validatedData = createProjectSchema.parse(req.body);
-
-      const project = await projectsService.createProject(req.tenantId, validatedData, req.user.id);
       
-      console.log('Project created successfully:', project.id);
+      const projectData = {
+        ...validatedData,
+        createdBy: req.user.name || req.user.email,
+        tenantId: req.tenantId,
+      };
 
-      res.status(201).json({
-        message: 'Project created successfully',
-        project,
-      });
+      const project = await projectsService.createProject(req.tenantId, projectData);
+      res.status(201).json(project);
     } catch (error) {
-      console.error('Create project error:', error);
-      res.status(400).json({
-        error: 'Failed to create project',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: 'Validation error', 
+          details: error.errors 
+        });
+      }
+      console.error('Error creating project:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -132,27 +117,28 @@ export class ProjectsController {
 
       const { id } = req.params;
       const validatedData = updateProjectSchema.parse(req.body);
-      
-      console.log('Updating project:', id, 'for tenant:', req.tenantId);
 
-      const project = await projectsService.updateProject(req.tenantId, id, validatedData);
+      const updateData = {
+        ...validatedData,
+        lastModifiedBy: req.user.name || req.user.email,
+      };
+
+      const project = await projectsService.updateProject(req.tenantId, id, updateData);
       
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      console.log('Project updated successfully:', project.id);
 
-      res.json({
-        message: 'Project updated successfully',
-        project,
-      });
+      res.json(project);
     } catch (error) {
-      console.error('Update project error:', error);
-      res.status(400).json({
-        error: 'Failed to update project',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: 'Validation error', 
+          details: error.errors 
+        });
+      }
+      console.error('Error updating project:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -163,26 +149,59 @@ export class ProjectsController {
       }
 
       const { id } = req.params;
-      
-      console.log('Deleting project:', id, 'for tenant:', req.tenantId);
+      const deleted = await projectsService.deleteProject(req.tenantId, id);
 
-      const success = await projectsService.deleteProject(req.tenantId, id);
-      
-      if (!success) {
+      if (!deleted) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      console.log('Project deleted successfully:', id);
 
-      res.json({
-        message: 'Project deleted successfully',
-      });
+      res.json({ message: 'Project deleted successfully' });
     } catch (error) {
-      console.error('Delete project error:', error);
-      res.status(500).json({
-        error: 'Failed to delete project',
-        details: error instanceof Error ? error.message : 'Unknown error',
+      console.error('Error deleting project:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async getProjectStats(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const stats = await projectsService.getProjectStats(req.tenantId);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching project stats:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async moveProject(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['contacted', 'proposal', 'won', 'lost'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const project = await projectsService.updateProject(req.tenantId, id, { 
+        status,
+        lastModifiedBy: req.user.name || req.user.email 
       });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      res.json(project);
+    } catch (error) {
+      console.error('Error moving project:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 }

@@ -1,17 +1,22 @@
+
 import { Router } from 'express';
+import { authenticateToken } from '../middleware/auth';
 import { projectsController } from '../controllers/projectsController';
-import { authenticateToken, tenantMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// All project routes require authentication and tenant context
+// Apply authentication middleware to all routes
 router.use(authenticateToken);
-router.use(tenantMiddleware);
 
+// CRUD routes
 router.get('/', projectsController.getProjects);
+router.get('/stats', projectsController.getProjectStats);
 router.get('/:id', projectsController.getProject);
 router.post('/', projectsController.createProject);
 router.put('/:id', projectsController.updateProject);
 router.delete('/:id', projectsController.deleteProject);
+
+// Special actions
+router.patch('/:id/move', projectsController.moveProject);
 
 export default router;

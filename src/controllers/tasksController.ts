@@ -197,4 +197,94 @@ export class TasksController {
   }
 }
 
+async getSubtasks(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { taskId } = req.params;
+      const subtasks = await tasksService.getSubtasksByTask(req.tenantId, taskId);
+      res.json(subtasks);
+    } catch (error) {
+      console.error('Error fetching subtasks:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async createSubtask(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { taskId } = req.params;
+      const { title } = req.body;
+
+      if (!title?.trim()) {
+        return res.status(400).json({ error: 'Subtask title is required' });
+      }
+
+      const subtask = await tasksService.createSubtask(req.tenantId, taskId, {
+        title: title.trim(),
+        createdBy: req.user.name || req.user.email,
+      });
+
+      res.status(201).json(subtask);
+    } catch (error) {
+      console.error('Error creating subtask:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async updateSubtask(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { taskId, subtaskId } = req.params;
+      const { title, completed } = req.body;
+
+      const updateData: any = {};
+      if (title !== undefined) updateData.title = title;
+      if (completed !== undefined) {
+        updateData.completed = completed;
+        updateData.completedAt = completed ? new Date().toISOString() : null;
+      }
+
+      const subtask = await tasksService.updateSubtask(req.tenantId, taskId, subtaskId, updateData);
+      
+      if (!subtask) {
+        return res.status(404).json({ error: 'Subtask not found' });
+      }
+
+      res.json(subtask);
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async deleteSubtask(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { taskId, subtaskId } = req.params;
+      const deleted = await tasksService.deleteSubtask(req.tenantId, taskId, subtaskId);
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Subtask not found' });
+      }
+
+      res.json({ message: 'Subtask deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting subtask:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+}
+
 export const tasksController = new TasksController();
