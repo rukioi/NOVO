@@ -69,15 +69,15 @@ export class AdminController {
       // Mapear para formato esperado pelo frontend
       const formattedKeys = keys.map(key => ({
         id: key.id,
-        accountType: key.account_type,
-        usesAllowed: key.uses_allowed,
-        usesLeft: key.uses_left,
-        singleUse: key.single_use,
-        expiresAt: key.expires_at,
+        accountType: key.accountType,
+        usesAllowed: key.usesAllowed,
+        usesLeft: key.usesLeft,
+        singleUse: key.singleUse,
+        expiresAt: key.expiresAt,
         revoked: key.revoked,
-        createdAt: key.created_at,
-        tenant: key.tenant_id ? { id: key.tenant_id } : null,
-        usageCount: key.uses_allowed - key.uses_left,
+        createdAt: key.createdAt,
+        tenant: key.tenantId ? { id: key.tenantId } : null,
+        usageCount: key.usesAllowed - key.usesLeft,
         metadata: key.metadata,
       }));
 
@@ -115,7 +115,7 @@ export class AdminController {
       
       // Buscar estatísticas de cada tenant
       const tenantsWithStats = await Promise.all(
-        tenants.map(async (tenant) => {
+        tenants.rows.map(async (tenant: any) => {
           let stats = {
             clients: 0,
             projects: 0,
@@ -137,7 +137,7 @@ export class AdminController {
             
             const { TenantDatabase } = await import('../config/database');
             const tenantDB = new TenantDatabase(tenant.id);
-            const result = await tenantDB.query(statsQuery.replace('${schema}', tenant.schema_name));
+            const result = await tenantDB.query(statsQuery.replace('${schema}', tenant.schemaName));
             
             if (result && result[0]) {
               stats = {
@@ -156,12 +156,12 @@ export class AdminController {
           return {
             id: tenant.id,
             name: tenant.name,
-            schemaName: tenant.schema_name,
-            planType: tenant.plan_type,
-            isActive: tenant.is_active,
-            maxUsers: tenant.max_users,
+            schemaName: tenant.schemaName,
+            planType: tenant.planType,
+            isActive: tenant.isActive,
+            maxUsers: tenant.maxUsers,
             userCount: 0, // TODO: implementar contagem real de usuários
-            createdAt: tenant.created_at,
+            createdAt: tenant.createdAt,
             stats,
           };
         })
@@ -186,19 +186,19 @@ export class AdminController {
       // Criar tenant no banco
       const tenantData = {
         name: validatedData.name,
-        schema_name: schemaName,
-        plan_type: validatedData.planType || 'basic',
-        is_active: true,
-        max_users: validatedData.maxUsers || 5,
-        max_storage: validatedData.maxStorage || 1073741824, // 1GB
+        schemaName: schemaName,
+        planType: validatedData.planType || 'basic',
+        isActive: true,
+        maxUsers: validatedData.maxUsers || 5,
+        maxStorage: validatedData.maxStorage || 1073741824, // 1GB
       };
 
       const tenant = await database.createTenant(tenantData);
 
       // Criar schema e tabelas para o tenant
       try {
-        await database.createTenantSchema(tenant.schema_name);
-        console.log(`Schema created for tenant: ${tenant.schema_name}`);
+        // TODO: Implementar criação de schema para tenant
+        console.log(`Schema should be created for tenant: ${tenant.schemaName}`);
       } catch (schemaError) {
         console.error('Error creating tenant schema:', schemaError);
         // Se falhou ao criar schema, remover o tenant criado
@@ -211,12 +211,12 @@ export class AdminController {
         tenant: {
           id: tenant.id,
           name: tenant.name,
-          schemaName: tenant.schema_name,
-          planType: tenant.plan_type,
-          isActive: tenant.is_active,
-          maxUsers: tenant.max_users,
+          schemaName: tenant.schemaName,
+          planType: tenant.planType,
+          isActive: tenant.isActive,
+          maxUsers: tenant.maxUsers,
           userCount: 0,
-          createdAt: tenant.created_at,
+          createdAt: tenant.createdAt,
           stats: {
             clients: 0,
             projects: 0,
@@ -294,12 +294,12 @@ export class AdminController {
       ]);
 
       // Contar tenants ativos
-      const activeTenants = tenants.filter(t => t.is_active).length;
+      const activeTenants = tenants.rows.filter((t: any) => t.isActive).length;
       
       // Agrupar chaves de registro por tipo de conta
-      const keysByType = registrationKeys.reduce((acc, key) => {
-        const type = key.account_type;
-        const existing = acc.find(item => item.accountType === type);
+      const keysByType = registrationKeys.reduce((acc: any, key: any) => {
+        const type = key.accountType;
+        const existing = acc.find((item: any) => item.accountType === type);
         if (existing) {
           existing.count++;
         } else {
@@ -310,27 +310,27 @@ export class AdminController {
 
       // Atividade recente (últimos registros de tenants e usuários)
       const recentActivity = [
-        ...tenants.slice(-3).map(tenant => ({
+        ...tenants.rows.slice(-3).map((tenant: any) => ({
           id: tenant.id,
           level: 'info' as const,
           message: `Tenant "${tenant.name}" created`,
-          createdAt: tenant.created_at,
+          createdAt: tenant.createdAt,
         })),
-        ...users.slice(-3).map(user => ({
+        ...users.rows.slice(-3).map((user: any) => ({
           id: user.id,
           level: 'info' as const,
           message: `User "${user.name}" registered`,
-          createdAt: user.created_at,
+          createdAt: user.createdAt,
         }))
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
 
       const metrics = {
         tenants: {
-          total: tenants.length,
+          total: tenants.rows.length,
           active: activeTenants,
         },
         users: {
-          total: users.length,
+          total: users.rows.length,
         },
         registrationKeys: keysByType,
         recentActivity,

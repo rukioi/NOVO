@@ -25,48 +25,18 @@ export class NotificationsController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Mock notifications for development
-      const mockNotifications = [
-        {
-          id: 'notif-1',
-          userId: req.user.id,
-          type: 'client',
-          title: 'Novo cliente adicionado',
-          message: 'Maria Silva Santos foi adicionada ao CRM',
-          payload: { clientId: 'client-1', createdBy: 'Dr. Silva' },
-          link: '/crm',
-          read: false,
-          isActive: true,
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        },
-        {
-          id: 'notif-2',
-          userId: req.user.id,
-          type: 'invoice',
-          title: 'Fatura vencendo em 3 dias',
-          message: 'Fatura INV-001 vence em 3 dias',
-          payload: { invoiceId: 'inv-1', amount: 2500 },
-          link: '/cobranca',
-          read: false,
-          isActive: true,
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-          updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        },
-        {
-          id: 'notif-3',
-          userId: req.user.id,
-          type: 'task',
-          title: 'Nova tarefa atribuída',
-          message: 'Revisar contrato foi atribuída a você',
-          payload: { taskId: 'task-1', assignedBy: 'Dr. Silva' },
-          link: '/tarefas',
-          read: true,
-          isActive: true,
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-          updatedAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
-        },
-      ];
+      // TODO: Implementar busca real de notificações do banco de dados
+      // Por enquanto, retornar array vazio até implementar a funcionalidade completa
+      const notifications: any[] = [];
+      
+      // Quando implementar, buscar notificações do tenant schema:
+      // const { tenantDB } = await import('../config/database');
+      // const result = await tenantDB.executeInTenantSchema(req.tenantId!, `
+      //   SELECT * FROM \${schema}.notifications 
+      //   WHERE user_id = $1 AND is_active = true 
+      //   ORDER BY created_at DESC 
+      //   LIMIT 50
+      // `, [req.user.id]);
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;

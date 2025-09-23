@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 5000,
     cors: true,
-    allowedHosts: true,
+    hmr: {
+      port: 5000,
+      host: "localhost"
+    },
     fs: {
       allow: ["./client", "./shared", "./admin"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],

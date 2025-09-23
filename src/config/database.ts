@@ -1,41 +1,26 @@
-import { createClient } from '@supabase/supabase-js';
+import { PrismaClient } from '@prisma/client';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pdsgfvjhtunnzvtlrihw.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkc2dmdmpodHVubnp2dGxyaWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NTkwMzIsImV4cCI6MjA3MzAzNTAzMn0.XJzgbqFnUzzLWJgaowHMwtLex2rrV5KZZKBP0PePhQU';
+const databaseUrl = process.env.DATABASE_URL;
 
-// Service key for server operations (only use server-side)
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
 
 console.log('Database config loaded:', {
-  url: supabaseUrl,
-  hasAnonKey: !!supabaseAnonKey,
-  hasServiceKey: !!supabaseServiceKey,
+  url: databaseUrl?.substring(0, 50) + '...',
   environment: process.env.NODE_ENV
 });
 
-// Main Supabase client for all operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-  db: {
-    schema: 'public'
+// Main Prisma client for all operations
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl
+    }
   }
 });
 
-// Service client for admin operations (server-side only)
-export const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-  db: {
-    schema: 'public'
-  }
-}) : null;
-
-// Database operations using Supabase
+// Database operations using Prisma
 export class Database {
   private static instance: Database;
 
@@ -48,15 +33,11 @@ export class Database {
 
   async testConnection() {
     try {
-      const { data, error } = await supabase.from('tenants').select('count').limit(1);
-      if (error) {
-        console.warn('Database connection test failed:', error.message);
-        return false;
-      }
-      console.log('Database connection successful');
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('✅ Database connection successful');
       return true;
     } catch (error) {
-      console.error('Database connection test failed:', error);
+      console.error('❌ Database connection test failed:', error);
       return false;
     }
   }
@@ -64,17 +45,10 @@ export class Database {
   // Admin operations
   async findAdminByEmail(email: string) {
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error finding admin by email:', error);
-        return null;
-      }
-      return data;
+      const admin = await prisma.adminUser.findUnique({
+        where: { email }
+      });
+      return admin;
     } catch (error) {
       console.error('Error in findAdminByEmail:', error);
       return null;
@@ -83,14 +57,10 @@ export class Database {
 
   async createAdminUser(userData: any) {
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .insert(userData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const admin = await prisma.adminUser.create({
+        data: userData
+      });
+      return admin;
     } catch (error) {
       console.error('Error creating admin user:', error);
       throw error;
@@ -99,12 +69,10 @@ export class Database {
 
   async updateAdminLastLogin(id: string) {
     try {
-      const { error } = await supabase
-        .from('admin_users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) throw error;
+      await prisma.adminUser.update({
+        where: { id },
+        data: { lastLogin: new Date() }
+      });
     } catch (error) {
       console.error('Error updating admin last login:', error);
       throw error;
@@ -114,20 +82,11 @@ export class Database {
   // User operations
   async findUserByEmail(email: string) {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select(`
-          *,
-          tenant:tenants(*)
-        `)
-        .eq('email', email)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error finding user by email:', error);
-        return null;
-      }
-      return data;
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: { tenant: true }
+      });
+      return user;
     } catch (error) {
       console.error('Error in findUserByEmail:', error);
       return null;
@@ -136,17 +95,11 @@ export class Database {
 
   async createUser(userData: any) {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .insert(userData)
-        .select(`
-          *,
-          tenant:tenants(*)
-        `)
-        .single();
-
-      if (error) throw error;
-      return data;
+      const user = await prisma.user.create({
+        data: userData,
+        include: { tenant: true }
+      });
+      return user;
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -155,12 +108,10 @@ export class Database {
 
   async updateUserLastLogin(id: string) {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', id);
-
-      if (error) throw error;
+      await prisma.user.update({
+        where: { id },
+        data: { lastLogin: new Date() }
+      });
     } catch (error) {
       console.error('Error updating user last login:', error);
       throw error;
@@ -169,80 +120,71 @@ export class Database {
 
   // Tenant operations
   async getAllTenants() {
-    return await this.query('SELECT * FROM tenants ORDER BY created_at DESC');
+    try {
+      const tenants = await prisma.tenant.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+      return { rows: tenants };
+    } catch (error) {
+      console.error('Error getting all tenants:', error);
+      throw error;
+    }
   }
 
   async getAllUsers() {
-    return await this.query('SELECT id, email, name, account_type, tenant_id, is_active, created_at FROM users ORDER BY created_at DESC');
+    try {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          accountType: true,
+          tenantId: true,
+          isActive: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      return { rows: users };
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      throw error;
+    }
   }
 
   async createTenant(tenantData: any) {
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .insert(tenantData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const tenant = await prisma.tenant.create({
+        data: tenantData
+      });
+      return tenant;
     } catch (error) {
       console.error('Error creating tenant:', error);
       throw error;
     }
   }
 
-  async updateTenant(id: string, data: any) {
-    const result = await this.query(`
-      UPDATE tenants 
-      SET name = COALESCE($1, name), 
-          plan_type = COALESCE($2, plan_type),
-          max_users = COALESCE($3, max_users),
-          max_storage = COALESCE($4, max_storage),
-          is_active = COALESCE($5, is_active),
-          updated_at = NOW()
-      WHERE id = $6
-      RETURNING *
-    `, [data.name, data.plan_type, data.max_users, data.max_storage, data.is_active, id]);
-
-    return result[0];
-  }
-
-  async createTenantSchema(schemaName: string): Promise<void> {
+  async updateTenant(id: string, updateData: any) {
     try {
-      console.log(`Creating schema: ${schemaName}`);
-
-      // Criar o schema
-      await this.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
-
-      // As tabelas já são criadas pela função create_tenant_schema
-      // Vamos apenas verificar se foram criadas corretamente
-      const verifyQuery = `
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = '${schemaName}' 
-        AND table_type = 'BASE TABLE'
-      `;
-
-      const { data: tables } = await (supabaseAdmin || supabase).rpc('execute_sql', {
-        query_text: verifyQuery
+      const tenant = await prisma.tenant.update({
+        where: { id },
+        data: {
+          ...updateData,
+          updatedAt: new Date()
+        }
       });
-
-      console.log(`Tables created in schema ${schemaName}:`, tables?.map(t => t.result?.table_name));
+      return tenant;
     } catch (error) {
-      console.error(`Error creating tenant schema ${schemaName}:`, error);
+      console.error('Error updating tenant:', error);
       throw error;
     }
   }
 
   async deleteTenant(id: string) {
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await prisma.tenant.delete({
+        where: { id }
+      });
     } catch (error) {
       console.error('Error deleting tenant:', error);
       throw error;
@@ -252,16 +194,11 @@ export class Database {
   // Registration keys operations
   async getAllRegistrationKeys() {
     try {
-      const { data, error } = await supabase
-        .from('registration_keys')
-        .select(`
-          *,
-          tenant:tenants(name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
+      const keys = await prisma.registrationKey.findMany({
+        include: { tenant: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' }
+      });
+      return keys;
     } catch (error) {
       console.error('Error getting registration keys:', error);
       return [];
@@ -270,14 +207,10 @@ export class Database {
 
   async createRegistrationKey(keyData: any) {
     try {
-      const { data, error } = await supabase
-        .from('registration_keys')
-        .insert(keyData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const key = await prisma.registrationKey.create({
+        data: keyData
+      });
+      return key;
     } catch (error) {
       console.error('Error creating registration key:', error);
       throw error;
@@ -286,12 +219,10 @@ export class Database {
 
   async revokeRegistrationKey(id: string) {
     try {
-      const { error } = await supabase
-        .from('registration_keys')
-        .update({ revoked: true })
-        .eq('id', id);
-
-      if (error) throw error;
+      await prisma.registrationKey.update({
+        where: { id },
+        data: { revoked: true }
+      });
     } catch (error) {
       console.error('Error revoking registration key:', error);
       throw error;
@@ -300,15 +231,17 @@ export class Database {
 
   async findValidRegistrationKeys() {
     try {
-      const { data, error } = await supabase
-        .from('registration_keys')
-        .select('*')
-        .eq('revoked', false)
-        .gt('uses_left', 0)
-        .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString());
-
-      if (error) throw error;
-      return data || [];
+      const keys = await prisma.registrationKey.findMany({
+        where: {
+          revoked: false,
+          usesLeft: { gt: 0 },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } }
+          ]
+        }
+      });
+      return keys;
     } catch (error) {
       console.error('Error finding valid registration keys:', error);
       return [];
@@ -317,12 +250,10 @@ export class Database {
 
   async updateRegistrationKeyUsage(id: string, updateData: any) {
     try {
-      const { error } = await supabase
-        .from('registration_keys')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
+      await prisma.registrationKey.update({
+        where: { id },
+        data: updateData
+      });
     } catch (error) {
       console.error('Error updating registration key usage:', error);
       throw error;
@@ -332,14 +263,10 @@ export class Database {
   // Refresh tokens operations
   async createRefreshToken(tokenData: any) {
     try {
-      const { data, error } = await supabase
-        .from('refresh_tokens')
-        .insert(tokenData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const token = await prisma.refreshToken.create({
+        data: tokenData
+      });
+      return token;
     } catch (error) {
       console.error('Error creating refresh token:', error);
       throw error;
@@ -348,22 +275,15 @@ export class Database {
 
   async findValidRefreshToken(tokenHash: string) {
     try {
-      const { data, error } = await supabase
-        .from('refresh_tokens')
-        .select(`
-          *,
-          user:users(*)
-        `)
-        .eq('token_hash', tokenHash)
-        .eq('is_active', true)
-        .gt('expires_at', new Date().toISOString())
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error finding refresh token:', error);
-        return null;
-      }
-      return data;
+      const token = await prisma.refreshToken.findFirst({
+        where: {
+          tokenHash,
+          isActive: true,
+          expiresAt: { gt: new Date() }
+        },
+        include: { user: true }
+      });
+      return token;
     } catch (error) {
       console.error('Error in findValidRefreshToken:', error);
       return null;
@@ -372,12 +292,10 @@ export class Database {
 
   async revokeAllUserTokens(userId: string) {
     try {
-      const { error } = await supabase
-        .from('refresh_tokens')
-        .update({ is_active: false })
-        .eq('user_id', userId);
-
-      if (error) throw error;
+      await prisma.refreshToken.updateMany({
+        where: { userId },
+        data: { isActive: false }
+      });
     } catch (error) {
       console.error('Error revoking user tokens:', error);
       throw error;
@@ -386,12 +304,10 @@ export class Database {
 
   async revokeRefreshToken(tokenHash: string) {
     try {
-      const { error } = await supabase
-        .from('refresh_tokens')
-        .update({ is_active: false })
-        .eq('token_hash', tokenHash);
-
-      if (error) throw error;
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash },
+        data: { isActive: false }
+      });
     } catch (error) {
       console.error('Error revoking refresh token:', error);
       throw error;
@@ -401,14 +317,10 @@ export class Database {
   // Audit logs
   async createAuditLog(logData: any) {
     try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .insert(logData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const log = await prisma.auditLog.create({
+        data: logData
+      });
+      return log;
     } catch (error) {
       console.error('Error creating audit log:', error);
       throw error;
@@ -418,14 +330,10 @@ export class Database {
   // System logs
   async createSystemLog(logData: any) {
     try {
-      const { data, error } = await supabase
-        .from('system_logs')
-        .insert(logData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const log = await prisma.systemLog.create({
+        data: logData
+      });
+      return log;
     } catch (error) {
       console.error('Error creating system log:', error);
       throw error;
@@ -435,15 +343,10 @@ export class Database {
   // Health check
   async healthCheck() {
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('count')
-        .limit(1);
-
+      await prisma.$queryRaw`SELECT 1`;
       return {
-        database: !error,
-        timestamp: new Date().toISOString(),
-        error: error?.message
+        database: true,
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       return {
@@ -451,6 +354,17 @@ export class Database {
         timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  // Raw query execution for complex operations
+  async query(query: string, params: any[] = []) {
+    try {
+      const result = await prisma.$queryRawUnsafe(query, ...params);
+      return { rows: result };
+    } catch (error) {
+      console.error('Error executing raw query:', error);
+      throw error;
     }
   }
 }
@@ -477,18 +391,8 @@ export class TenantDatabase {
 
       console.log(`Executing query in schema ${schemaName}:`, finalQuery);
 
-      // Use Supabase RPC to execute raw SQL queries
-      const { data, error } = await (supabaseAdmin || supabase).rpc('execute_sql', {
-        query_text: finalQuery,
-        params: params
-      });
-
-      if (error) {
-        console.error(`Error executing query in schema ${schemaName}:`, error);
-        throw error;
-      }
-
-      return data || [];
+      const result = await prisma.$queryRawUnsafe<T[]>(finalQuery, ...params);
+      return result || [];
     } catch (error) {
       console.error('Error executing tenant query:', error);
       throw error;
@@ -497,64 +401,12 @@ export class TenantDatabase {
 
   async query<T = any>(query: string, params: any[] = []): Promise<T[]> {
     try {
-      // Use raw SQL execution for complex queries
-      const { data, error } = await (supabaseAdmin || supabase).rpc('execute_sql', {
-        query_text: query,
-        params: params
-      });
-
-      if (error) {
-        console.error('Error executing query:', error);
-        throw error;
-      }
-
-      return data || [];
+      const result = await prisma.$queryRawUnsafe<T[]>(query, ...params);
+      return result || [];
     } catch (error) {
       console.error('Error executing query:', error);
       throw error;
     }
-  }
-
-  async create<T = any>(table: string, data: any): Promise<T> {
-    const columns = Object.keys(data).join(', ');
-    const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
-    const values = Object.values(data);
-
-    const query = `
-      INSERT INTO \${schema}.${table} (${columns})
-      VALUES (${placeholders})
-      RETURNING *
-    `;
-
-    const result = await this.executeInTenantSchema<T>(query, values);
-    return result[0];
-  }
-
-  async findById<T = any>(table: string, id: string): Promise<T | null> {
-    const query = `SELECT * FROM \${schema}.${table} WHERE id = $1`;
-    const result = await this.executeInTenantSchema<T>(query, [id]);
-    return result[0] || null;
-  }
-
-  async update<T = any>(table: string, id: string, data: any): Promise<T> {
-    const setClause = Object.keys(data).map((key, i) => `${key} = $${i + 2}`).join(', ');
-    const values = [id, ...Object.values(data)];
-
-    const query = `
-      UPDATE \${schema}.${table}
-      SET ${setClause}
-      WHERE id = $1
-      RETURNING *
-    `;
-
-    const result = await this.executeInTenantSchema<T>(query, values);
-    return result[0];
-  }
-
-  async delete(table: string, id: string): Promise<boolean> {
-    const query = `DELETE FROM \${schema}.${table} WHERE id = $1`;
-    const result = await this.executeInTenantSchema(query, [id]);
-    return result.length > 0;
   }
 }
 

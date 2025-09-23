@@ -32,7 +32,35 @@ export class TenantService {
   }
 
   async getTenantStats(tenantId: string) {
-    // Mock stats for now
+    try {
+      const tenantDB = await this.getTenantDatabase(tenantId);
+      
+      // Buscar estatísticas reais do tenant
+      const statsQuery = `
+        SELECT 
+          COALESCE((SELECT COUNT(*) FROM \${schema}.clients WHERE is_active = true), 0) as clients,
+          COALESCE((SELECT COUNT(*) FROM \${schema}.projects WHERE is_active = true), 0) as projects,
+          COALESCE((SELECT COUNT(*) FROM \${schema}.tasks WHERE is_active = true), 0) as tasks,
+          COALESCE((SELECT COUNT(*) FROM \${schema}.transactions WHERE is_active = true), 0) as transactions,
+          COALESCE((SELECT COUNT(*) FROM \${schema}.invoices WHERE is_active = true), 0) as invoices
+      `;
+      
+      const result = await tenantDB.query(statsQuery);
+      
+      if (result && result[0]) {
+        return {
+          clients: parseInt(result[0].clients || '0'),
+          projects: parseInt(result[0].projects || '0'),
+          tasks: parseInt(result[0].tasks || '0'),
+          transactions: parseInt(result[0].transactions || '0'),
+          invoices: parseInt(result[0].invoices || '0'),
+        };
+      }
+    } catch (error) {
+      console.warn(`Error fetching tenant stats for ${tenantId}:`, error);
+    }
+    
+    // Fallback para stats zerados se houver erro
     return {
       clients: 0,
       projects: 0,
