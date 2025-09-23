@@ -1,19 +1,29 @@
+
 import 'dotenv/config';
 import { createApp } from './app';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
 
 async function startServer() {
   try {
+    console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
+    console.log('🌐 Starting server...');
+
     // Create Express app
     const app = createApp();
 
     // Start server
-    const server = app.listen(PORT, 'localhost', () => {
-      console.log(`🚀 SaaS Backend Server running on port ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔧 API Base URL: http://localhost:${PORT}/api`);
-      console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`🚀 SaaS Backend Server running on ${HOST}:${PORT}`);
+      console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
+      console.log(`🔧 API Base URL: http://${HOST}:${PORT}/api`);
+      
+      if (process.env.NODE_ENV === 'production') {
+        console.log('🟢 Production mode enabled');
+      } else {
+        console.log('🟡 Development mode enabled');
+      }
     });
 
     // Graceful shutdown

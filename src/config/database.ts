@@ -1,7 +1,18 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://pdsgfvjhtunnzvtlrihw.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkc2dmdmpodHVubnp2dGxyaWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NTkwMzIsImV4cCI6MjA3MzAzNTAzMn0.XJzgbqFnUzzLWJgaowHMwtLex2rrV5KZZKBP0PePhQU';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pdsgfvjhtunnzvtlrihw.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkc2dmdmpodHVubnp2dGxyaWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NTkwMzIsImV4cCI6MjA3MzAzNTAzMn0.XJzgbqFnUzzLWJgaowHMwtLex2rrV5KZZKBP0PePhQU';
+
+// Service key for server operations (only use server-side)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+console.log('Database config loaded:', {
+  url: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  hasServiceKey: !!supabaseServiceKey,
+  environment: process.env.NODE_ENV
+});
 
 // Main Supabase client for all operations
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -13,6 +24,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     schema: 'public'
   }
 });
+
+// Service client for admin operations (server-side only)
+export const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+  db: {
+    schema: 'public'
+  }
+}) : null;
 
 // Database operations using Supabase
 export class Database {
@@ -32,6 +54,7 @@ export class Database {
         console.warn('Database connection test failed:', error.message);
         return false;
       }
+      console.log('Database connection successful');
       return true;
     } catch (error) {
       console.error('Database connection test failed:', error);
@@ -305,85 +328,31 @@ export class Database {
     }
   }
 
-  async createAdminRefreshToken(tokenData: any) {
+  async findValidRefreshToken(tokenHash: string) {
     try {
       const { data, error } = await supabase
-        .from('admin_refresh_tokens')
-        .insert(tokenData)
-        .select()
+        .from('refresh_tokens')
+        .select(`
+          *,
+          user:users(*)
+        `)
+        .eq('token_hash', tokenHash)
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString())
         .single();
       
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error finding refresh token:', error);
+        return null;
+      }
       return data;
     } catch (error) {
-      console.error('Error creating admin refresh token:', error);
-      throw error;
+      console.error('Error in findValidRefreshToken:', error);
+      return null;
     }
   }
 
-  async findActiveRefreshTokens(userId: string) {
-    try {
-      const { data, error } = await supabase
-        .from('refresh_tokens')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .gt('expires_at', new Date().toISOString());
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error finding active refresh tokens:', error);
-      return [];
-    }
-  }
-
-  async findActiveAdminRefreshTokens(adminId: string) {
-    try {
-      const { data, error } = await supabase
-        .from('admin_refresh_tokens')
-        .select('*')
-        .eq('admin_id', adminId)
-        .eq('is_active', true)
-        .gt('expires_at', new Date().toISOString());
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error finding active admin refresh tokens:', error);
-      return [];
-    }
-  }
-
-  async deactivateRefreshToken(id: string) {
-    try {
-      const { error } = await supabase
-        .from('refresh_tokens')
-        .update({ is_active: false })
-        .eq('id', id);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deactivating refresh token:', error);
-      throw error;
-    }
-  }
-
-  async deactivateAdminRefreshToken(id: string) {
-    try {
-      const { error } = await supabase
-        .from('admin_refresh_tokens')
-        .update({ is_active: false })
-        .eq('id', id);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deactivating admin refresh token:', error);
-      throw error;
-    }
-  }
-
-  async deactivateAllUserTokens(userId: string) {
+  async revokeAllUserTokens(userId: string) {
     try {
       const { error } = await supabase
         .from('refresh_tokens')
@@ -392,182 +361,166 @@ export class Database {
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error deactivating all user tokens:', error);
+      console.error('Error revoking user tokens:', error);
       throw error;
     }
   }
 
-  async deactivateAllAdminTokens(adminId: string) {
+  async revokeRefreshToken(tokenHash: string) {
     try {
       const { error } = await supabase
-        .from('admin_refresh_tokens')
+        .from('refresh_tokens')
         .update({ is_active: false })
-        .eq('admin_id', adminId);
+        .eq('token_hash', tokenHash);
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error deactivating all admin tokens:', error);
+      console.error('Error revoking refresh token:', error);
       throw error;
     }
   }
 
-  // API Config operations
-  async getTenantApiConfigs() {
+  // Audit logs
+  async createAuditLog(logData: any) {
     try {
       const { data, error } = await supabase
-        .from('tenant_settings')
-        .select(`
-          *,
-          tenant:tenants(name, is_active)
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error getting tenant API configs:', error);
-      return [];
-    }
-  }
-
-  async getTenantApiConfig(tenantId: string) {
-    try {
-      const { data, error } = await supabase
-        .from('tenant_settings')
-        .select(`
-          *,
-          tenant:tenants(name, is_active)
-        `)
-        .eq('tenant_id', tenantId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    } catch (error) {
-      console.error('Error getting tenant API config:', error);
-      return null;
-    }
-  }
-
-  async createTenantApiConfig(configData: any) {
-    try {
-      const { data, error } = await supabase
-        .from('tenant_settings')
-        .insert(configData)
-        .select(`
-          *,
-          tenant:tenants(name, is_active)
-        `)
+        .from('audit_logs')
+        .insert(logData)
+        .select()
         .single();
       
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error creating tenant API config:', error);
+      console.error('Error creating audit log:', error);
       throw error;
     }
   }
 
-  async updateTenantApiConfig(tenantId: string, updateData: any) {
+  // System logs
+  async createSystemLog(logData: any) {
     try {
       const { data, error } = await supabase
-        .from('tenant_settings')
-        .update(updateData)
-        .eq('tenant_id', tenantId)
-        .select(`
-          *,
-          tenant:tenants(name, is_active)
-        `)
+        .from('system_logs')
+        .insert(logData)
+        .select()
         .single();
       
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error updating tenant API config:', error);
+      console.error('Error creating system log:', error);
       throw error;
     }
   }
 
-  async deleteTenantApiConfig(tenantId: string) {
+  // Health check
+  async healthCheck() {
     try {
-      const { error } = await supabase
-        .from('tenant_settings')
-        .delete()
-        .eq('tenant_id', tenantId);
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('count')
+        .limit(1);
       
-      if (error) throw error;
+      return {
+        database: !error,
+        timestamp: new Date().toISOString(),
+        error: error?.message
+      };
     } catch (error) {
-      console.error('Error deleting tenant API config:', error);
-      throw error;
+      return {
+        database: false,
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 }
 
 export const database = Database.getInstance();
 
-// Tenant-specific database operations
+// Initialize connection test
+database.testConnection().then(result => {
+  if (result) {
+    console.log('✅ Database connected successfully');
+  } else {
+    console.log('❌ Database connection failed');
+  }
+});
+
+// Tenant Database operations for multi-tenancy
 export class TenantDatabase {
-  private tenantId: string;
+  constructor(private tenantId: string) {}
 
-  constructor(tenantId: string) {
-    this.tenantId = tenantId;
-  }
-
-  async query(sql: string, params: any[] = []) {
-    // For now, return mock data since we're using Supabase
-    console.log('Tenant query:', sql, params);
-    return [];
-  }
-
-  async findMany(table: string, where: any = {}, options: any = {}) {
-    console.log('Tenant findMany:', table, where, options);
-    return [];
-  }
-
-  async findById(table: string, id: string) {
-    console.log('Tenant findById:', table, id);
-    return null;
-  }
-
-  async create(table: string, data: any) {
-    console.log('Tenant create:', table, data);
-    return { id: 'mock-id', ...data };
-  }
-
-  async update(table: string, id: string, data: any) {
-    console.log('Tenant update:', table, id, data);
-    return { id, ...data };
-  }
-
-  async delete(table: string, id: string) {
-    console.log('Tenant delete:', table, id);
-    return { id };
-  }
-
-  async count(table: string, where: any = {}) {
-    console.log('Tenant count:', table, where);
-    return 0;
-  }
-
-  async getDashboardMetrics(accountType: string) {
-    if (accountType === 'SIMPLES') {
-      return {
-        revenue: 0,
-        expenses: 0,
-        balance: 0,
-        clients: 0,
-        projects: 0,
-        tasks: 0,
-      };
+  async executeInTenantSchema<T = any>(query: string, params: any[] = []): Promise<T[]> {
+    try {
+      const schemaName = `tenant_${this.tenantId}`;
+      const finalQuery = query.replace(/\$\{schema\}/g, schemaName);
+      
+      console.log(`Executing query in schema ${schemaName}:`, finalQuery);
+      
+      // For now, return mock data since we need to implement proper schema switching
+      // This would need to be implemented with proper SQL execution
+      return [] as T[];
+    } catch (error) {
+      console.error('Error executing tenant query:', error);
+      throw error;
     }
+  }
 
-    return {
-      revenue: 45280,
-      expenses: 12340,
-      balance: 32940,
-      clients: 127,
-      projects: 23,
-      tasks: 89,
-    };
+  async query<T = any>(query: string, params: any[] = []): Promise<T[]> {
+    return this.executeInTenantSchema<T>(query, params);
+  }
+
+  async create<T = any>(table: string, data: any): Promise<T> {
+    const columns = Object.keys(data).join(', ');
+    const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(data);
+    
+    const query = `
+      INSERT INTO \${schema}.${table} (${columns})
+      VALUES (${placeholders})
+      RETURNING *
+    `;
+    
+    const result = await this.executeInTenantSchema<T>(query, values);
+    return result[0];
+  }
+
+  async findById<T = any>(table: string, id: string): Promise<T | null> {
+    const query = `SELECT * FROM \${schema}.${table} WHERE id = $1`;
+    const result = await this.executeInTenantSchema<T>(query, [id]);
+    return result[0] || null;
+  }
+
+  async update<T = any>(table: string, id: string, data: any): Promise<T> {
+    const setClause = Object.keys(data).map((key, i) => `${key} = $${i + 2}`).join(', ');
+    const values = [id, ...Object.values(data)];
+    
+    const query = `
+      UPDATE \${schema}.${table}
+      SET ${setClause}
+      WHERE id = $1
+      RETURNING *
+    `;
+    
+    const result = await this.executeInTenantSchema<T>(query, values);
+    return result[0];
+  }
+
+  async delete(table: string, id: string): Promise<boolean> {
+    const query = `DELETE FROM \${schema}.${table} WHERE id = $1`;
+    const result = await this.executeInTenantSchema(query, [id]);
+    return result.length > 0;
   }
 }
+
+// Export tenant database factory
+export const tenantDB = {
+  executeInTenantSchema: <T = any>(tenantId: string, query: string, params: any[] = []): Promise<T[]> => {
+    const db = new TenantDatabase(tenantId);
+    return db.executeInTenantSchema<T>(query, params);
+  }
+};
+
+export { TenantDatabase };
