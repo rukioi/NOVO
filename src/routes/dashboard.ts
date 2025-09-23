@@ -12,5 +12,6 @@ router.get('/metrics', dashboardController.getMetrics);
 router.get('/financeiro', dashboardController.getFinancialData);
 router.get('/clientes', dashboardController.getClientMetrics);
 router.get('/projetos', dashboardController.getProjectMetrics);
+router.get('/stats', dashboardController.getStats);
 
 export default router;

@@ -1,7 +1,53 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
+import { dashboardService } from '../services/dashboardService';
 
 export class DashboardController {
+  async getStats(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const metrics = await dashboardService.getDashboardMetrics(req.tenantId, req.user.id, req.user.accountType);
+      res.json(metrics);
+    } catch (error) {
+      console.error('Dashboard stats error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch dashboard stats',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  async getDashboard(req: AuthenticatedRequest, res: Response) {
+    try {
+      if (!req.user || !req.tenantId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const [metrics, recentActivity, chartData] = await Promise.all([
+        dashboardService.getDashboardMetrics(req.tenantId, req.user.id, req.user.accountType),
+        dashboardService.getRecentActivity(req.tenantId, req.user.id, 10),
+        dashboardService.getChartData(req.tenantId, req.user.accountType)
+      ]);
+
+      const dashboardData = {
+        metrics,
+        charts: chartData,
+        recentActivity,
+      };
+
+      res.json(dashboardData);
+    } catch (error) {
+      console.error('Dashboard error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch dashboard data',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
   async getMetrics(req: AuthenticatedRequest, res: Response) {
     try {
       if (!req.user || !req.tenantId) {
@@ -10,7 +56,7 @@ export class DashboardController {
 
       // Mock metrics based on account type
       const accountType = req.user.accountType;
-      
+
       let metrics;
       if (accountType === 'SIMPLES') {
         metrics = {
