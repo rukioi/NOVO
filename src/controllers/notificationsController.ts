@@ -43,14 +43,14 @@ export class NotificationsController {
       const unreadOnly = req.query.unreadOnly === 'true';
       const type = req.query.type as string;
 
-      let filteredNotifications = mockNotifications;
+      let filteredNotifications = notifications;
 
       if (unreadOnly) {
-        filteredNotifications = filteredNotifications.filter(n => !n.read);
+        filteredNotifications = filteredNotifications.filter((n: any) => !n.read);
       }
 
       if (type) {
-        filteredNotifications = filteredNotifications.filter(n => n.type === type);
+        filteredNotifications = filteredNotifications.filter((n: any) => n.type === type);
       }
 
       const total = filteredNotifications.length;
@@ -84,8 +84,8 @@ export class NotificationsController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Mock unread count
-      const unreadCount = 2;
+      // Retornar 0 até implementar sistema real de notificações
+      const unreadCount = 0;
 
       res.json({ unreadCount });
     } catch (error) {
