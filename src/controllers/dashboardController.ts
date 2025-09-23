@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { dashboardService } from '../services/dashboardService';
+import { clientsService } from '../services/clientsService';
+import { projectsService } from '../services/projectsService';
+import { transactionsService } from '../services/transactionsService';
 
 export class DashboardController {
   async getStats(req: AuthenticatedRequest, res: Response) {
@@ -54,33 +57,11 @@ export class DashboardController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Mock metrics based on account type
-      const accountType = req.user.accountType;
-
-      let metrics;
-      if (accountType === 'SIMPLES') {
-        metrics = {
-          revenue: 0,
-          expenses: 0,
-          balance: 0,
-          clients: 127,
-          projects: 23,
-          tasks: 89,
-          revenueGrowth: 0,
-          clientGrowth: 12,
-        };
-      } else {
-        metrics = {
-          revenue: 45280,
-          expenses: 12340,
-          balance: 32940,
-          clients: 127,
-          projects: 23,
-          tasks: 89,
-          revenueGrowth: 15.2,
-          clientGrowth: 12,
-        };
-      }
+      const metrics = await dashboardService.getDashboardMetrics(
+        req.tenantId,
+        req.user.id,
+        req.user.accountType || 'basic'
+      );
 
       res.json({
         metrics,
@@ -114,26 +95,33 @@ export class DashboardController {
         });
       }
 
-      // Mock financial data
-      const mockData = {
-        revenue: 45280,
-        expenses: 12340,
-        balance: 32940,
-        transactionCount: 156,
-        trends: [
-          { month: '2024-01', revenue: 38000, expenses: 11000, balance: 27000 },
-          { month: '2024-02', revenue: 42000, expenses: 12500, balance: 29500 },
-          { month: '2024-03', revenue: 45280, expenses: 12340, balance: 32940 },
-        ],
-        categories: [
-          { category: 'Honorários', type: 'income', total: 35000, count: 25 },
-          { category: 'Consultorias', type: 'income', total: 10280, count: 8 },
-          { category: 'Salários', type: 'expense', total: 8000, count: 3 },
-          { category: 'Aluguel', type: 'expense', total: 2500, count: 1 },
-        ],
+      // Get real financial data from transactions
+      const currentMonth = new Date();
+      currentMonth.setDate(1);
+      currentMonth.setHours(0, 0, 0, 0);
+
+      const transactions = await transactionsService.getTransactions(req.tenantId, req.user.id, {
+        startDate: currentMonth.toISOString(),
+        endDate: new Date().toISOString()
+      });
+
+      const revenue = transactions.data
+        .filter(t => t.type === 'income' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const expenses = transactions.data
+        .filter(t => t.type === 'expense' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const financialData = {
+        revenue,
+        expenses,
+        balance: revenue - expenses,
+        growthPercentage: 0, // Calculate based on previous month
+        recentTransactions: transactions.data.slice(0, 5)
       };
 
-      res.json(mockData);
+      res.json(financialData);
     } catch (error) {
       console.error('Financial data error:', error);
       res.status(500).json({
@@ -149,19 +137,27 @@ export class DashboardController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Mock client metrics
-      const mockMetrics = {
-        totalClients: 127,
-        newThisMonth: 12,
-        growthPercentage: 10.4,
+      const clients = await clientsService.getClients(req.tenantId, req.user.id, {});
+
+      const currentMonth = new Date();
+      currentMonth.setDate(1);
+
+      const newThisMonth = clients.data.filter(c =>
+        new Date(c.createdAt) >= currentMonth
+      ).length;
+
+      const metrics = {
+        totalClients: clients.total,
+        newThisMonth,
+        growthPercentage: clients.total > 0 ? (newThisMonth / clients.total) * 100 : 0,
         byStatus: [
-          { status: 'active', count: 115 },
-          { status: 'inactive', count: 8 },
-          { status: 'pending', count: 4 },
+          { status: 'active', count: clients.data.filter(c => c.status === 'active').length },
+          { status: 'inactive', count: clients.data.filter(c => c.status === 'inactive').length },
+          { status: 'pending', count: clients.data.filter(c => c.status === 'pending').length },
         ],
       };
 
-      res.json(mockMetrics);
+      res.json(metrics);
     } catch (error) {
       console.error('Client metrics error:', error);
       res.status(500).json({
@@ -177,16 +173,29 @@ export class DashboardController {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Mock project metrics
-      const mockMetrics = {
-        totalProjects: 23,
-        activeProjects: 18,
-        overdueProjects: 2,
-        averageProgress: 67,
-        totalRevenue: 125000,
+      const projects = await projectsService.getProjects(req.tenantId, req.user.id, {});
+
+      const activeProjects = projects.data.filter(p =>
+        p.stage !== 'won' && p.stage !== 'lost'
+      ).length;
+
+      const overdueProjects = projects.data.filter(p =>
+        p.deadline && new Date(p.deadline) < new Date()
+      ).length;
+
+      const totalRevenue = projects.data
+        .filter(p => p.stage === 'won')
+        .reduce((sum, p) => sum + (p.value || 0), 0);
+
+      const metrics = {
+        totalProjects: projects.total,
+        activeProjects,
+        overdueProjects,
+        averageProgress: projects.data.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.total || 0,
+        totalRevenue,
       };
 
-      res.json(mockMetrics);
+      res.json(metrics);
     } catch (error) {
       console.error('Project metrics error:', error);
       res.status(500).json({

@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { dashboardController } from '../controllers/dashboardController';
-import { authenticateToken, tenantMiddleware } from '../middleware/auth';
-import { Request, Response } from 'express'; // Ensure Request and Response are imported
-import { dashboardService } from '../services/dashboardService'; // Ensure dashboardService is imported
-import { authMiddleware } from '../middleware/auth'; // Assuming authMiddleware is the correct name for the authentication middleware
+import { authenticateToken, tenantMiddleware, AuthenticatedRequest } from '../middleware/auth';
+import { Request, Response } from 'express';
+import { dashboardService } from '../services/dashboardService';
 
 const router = Router();
 
@@ -12,7 +11,7 @@ router.use(authenticateToken);
 router.use(tenantMiddleware);
 
 // GET /api/dashboard/metrics
-router.get('/metrics', authMiddleware, async (req: Request, res: Response) => {
+router.get('/metrics', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = req.user as any;
     const metrics = await dashboardService.getDashboardMetrics(
@@ -32,7 +31,7 @@ router.get('/metrics', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // GET /api/dashboard/recent-activity
-router.get('/recent-activity', authMiddleware, async (req: Request, res: Response) => {
+router.get('/recent-activity', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = req.user as any;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -54,7 +53,7 @@ router.get('/recent-activity', authMiddleware, async (req: Request, res: Respons
 });
 
 // GET /api/dashboard/chart-data
-router.get('/chart-data', authMiddleware, async (req: Request, res: Response) => {
+router.get('/chart-data', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = req.user as any;
     const period = req.query.period as string || '30d';

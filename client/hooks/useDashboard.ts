@@ -76,7 +76,20 @@ export function useDashboard() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard metrics';
       setError(errorMessage);
       console.error('Dashboard metrics error:', err);
-      throw err;
+      
+      // Set empty metrics instead of throwing
+      setMetrics({
+        financial: {
+          revenue: 0,
+          expenses: 0,
+          balance: 0,
+          thisMonth: { revenue: 0, expenses: 0 },
+          invoices: { total: 0, paid: 0, pending: 0, overdue: 0 }
+        },
+        clients: { total: 0, active: 0, inactive: 0, thisMonth: 0 },
+        projects: { total: 0, contacted: 0, proposal: 0, won: 0, lost: 0, thisMonth: 0 },
+        tasks: { total: 0, completed: 0, inProgress: 0, notStarted: 0, urgent: 0 }
+      });
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +102,7 @@ export function useDashboard() {
       return response;
     } catch (err) {
       console.error('Recent activity error:', err);
-      throw err;
+      setRecentActivity([]);
     }
   };
 
@@ -100,14 +113,14 @@ export function useDashboard() {
       return response;
     } catch (err) {
       console.error('Chart data error:', err);
-      throw err;
+      setChartData({ revenue: [], expenses: [] });
     }
   };
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        await Promise.all([
+        await Promise.allSettled([
           loadDashboardMetrics(),
           loadRecentActivity(),
           loadChartData()

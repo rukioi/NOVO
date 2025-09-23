@@ -53,78 +53,27 @@ import {
 import { cn } from '@/lib/utils';
 import { DashboardCharts } from '@/components/Dashboard/Charts';
 import { useNavigate } from 'react-router-dom';
+import { useDashboard } from '@/hooks/useDashboard';
 
-// Mock data - would come from API in real app
-const metrics = {
-  revenue: {
-    value: 45280.00,
-    change: 15,
-    trend: 'up' as const,
-  },
-  expenses: {
-    value: 12340.00,
-    change: -8,
-    trend: 'down' as const,
-  },
-  balance: {
-    value: 32940.00,
-    change: 23,
-    trend: 'up' as const,
-  },
-  clients: {
-    value: 127,
-    change: 12,
-    trend: 'up' as const,
-    period: 'este mês',
-  },
+const getActivityIcon = (type: string) => {
+  switch (type) {
+    case 'client': return Users;
+    case 'invoice': return AlertCircle;
+    case 'project': return FileText;
+    case 'task': return Clock;
+    default: return FileText;
+  }
 };
 
-const recentActivities = [
-  {
-    id: 1,
-    type: 'client',
-    message: 'Novo cliente adicionado: Maria Silva',
-    time: '2 horas atrás',
-    icon: Users,
-    color: 'text-blue-600',
-  },
-  {
-    id: 2,
-    type: 'invoice',
-    message: 'Fatura INV-001 vencendo em 3 dias',
-    time: '4 horas atrás',
-    icon: AlertCircle,
-    color: 'text-yellow-600',
-  },
-  {
-    id: 3,
-    type: 'project',
-    message: 'Projeto "Ação Trabalhista" atualizado',
-    time: '6 horas atrás',
-    icon: FileText,
-    color: 'text-green-600',
-  },
-  {
-    id: 4,
-    type: 'task',
-    message: 'Tarefa "Revisar contrato" completada',
-    time: '1 dia atrás',
-    icon: Clock,
-    color: 'text-purple-600',
-  },
-];
-
-const urgentProjects = [
-  { name: 'Ação Previdenciária - João Santos', deadline: '2024-01-15', status: 'Em Andamento' },
-  { name: 'Divórcio Consensual - Ana Costa', deadline: '2024-01-18', status: 'Revisão' },
-  { name: 'Recuperação Judicial - Tech LTDA', deadline: '2024-01-20', status: 'Aguardando Cliente' },
-];
-
-const upcomingInvoices = [
-  { number: 'INV-001', client: 'Maria Silva', amount: 2500.00, dueDate: '2024-01-15' },
-  { number: 'INV-002', client: 'João Santos', amount: 4800.00, dueDate: '2024-01-16' },
-  { number: 'INV-003', client: 'Tech LTDA', amount: 12000.00, dueDate: '2024-01-18' },
-];
+const getActivityColor = (type: string) => {
+  switch (type) {
+    case 'client': return 'text-blue-600';
+    case 'invoice': return 'text-yellow-600';
+    case 'project': return 'text-green-600';
+    case 'task': return 'text-purple-600';
+    default: return 'text-gray-600';
+  }
+};
 
 function MetricCard({ 
   title, 
@@ -174,6 +123,7 @@ function MetricCard({
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { metrics, recentActivity, chartData, isLoading, error } = useDashboard();
 
   const handleViewAllNotifications = () => {
     // Redirect to notifications page instead of showing notification
@@ -267,41 +217,63 @@ export function Dashboard() {
         </div>
 
         {/* Metric Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="💰 RECEITAS"
-            value={metrics.revenue.value}
-            change={metrics.revenue.change}
-            trend={metrics.revenue.trend}
-            icon={DollarSign}
-            className="metric-revenue"
-          />
-          <MetricCard
-            title="📉 DESPESAS"
-            value={metrics.expenses.value}
-            change={metrics.expenses.change}
-            trend={metrics.expenses.trend}
-            icon={TrendingDown}
-            className="metric-expense"
-          />
-          <MetricCard
-            title="🏦 SALDO"
-            value={metrics.balance.value}
-            change={metrics.balance.change}
-            trend={metrics.balance.trend}
-            icon={TrendingUp}
-            className="metric-balance-positive"
-          />
-          <MetricCard
-            title="👥 CLIENTES"
-            value={metrics.clients.value}
-            change={metrics.clients.change}
-            trend={metrics.clients.trend}
-            icon={Users}
-            format="number"
-            className="metric-clients"
-          />
-        </div>
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader className="space-y-0 pb-2">
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : metrics ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              title="💰 RECEITAS"
+              value={metrics.financial.revenue}
+              change={15} // Calculate from previous period
+              trend="up"
+              icon={DollarSign}
+              className="metric-revenue"
+            />
+            <MetricCard
+              title="📉 DESPESAS"
+              value={metrics.financial.expenses}
+              change={-8} // Calculate from previous period
+              trend="down"
+              icon={TrendingDown}
+              className="metric-expense"
+            />
+            <MetricCard
+              title="🏦 SALDO"
+              value={metrics.financial.balance}
+              change={23} // Calculate from previous period
+              trend={metrics.financial.balance >= 0 ? 'up' : 'down'}
+              icon={TrendingUp}
+              className="metric-balance-positive"
+            />
+            <MetricCard
+              title="👥 CLIENTES"
+              value={metrics.clients.total}
+              change={metrics.clients.thisMonth > 0 ? 12 : 0}
+              trend="up"
+              icon={Users}
+              format="number"
+              className="metric-clients"
+            />
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              {error || 'Erro ao carregar métricas'}
+            </p>
+          </div>
+        )}
 
         {/* Charts Section */}
         <DashboardCharts />
@@ -322,15 +294,22 @@ export function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3">
-                  <activity.icon className={cn("h-4 w-4 mt-1", activity.color)} />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm">{activity.message}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+              {recentActivity.slice(0, 4).map((activity) => {
+                const IconComponent = getActivityIcon(activity.type);
+                const colorClass = getActivityColor(activity.type);
+                
+                return (
+                  <div key={activity.id} className="flex items-start space-x-3">
+                    <IconComponent className={cn("h-4 w-4 mt-1", colorClass)} />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(activity.date).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <Button variant="outline" size="sm" className="w-full" onClick={handleViewAllNotifications}>
                 <Plus className="h-4 w-4 mr-2" />
                 Ver mais
@@ -352,20 +331,28 @@ export function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {urgentProjects.map((project, index) => (
-                <div key={index} className="flex flex-col space-y-2 p-3 border rounded-lg">
-                  <h4 className="text-sm font-medium">{project.name}</h4>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      <Calendar className="h-3 w-3 inline mr-1" />
-                      {new Date(project.deadline).toLocaleDateString('pt-BR')}
-                    </span>
-                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                      {project.status}
-                    </span>
+              {recentActivity
+                .filter(activity => activity.type === 'project')
+                .slice(0, 3)
+                .map((project, index) => (
+                  <div key={index} className="flex flex-col space-y-2 p-3 border rounded-lg">
+                    <h4 className="text-sm font-medium">{project.title}</h4>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        {new Date(project.date).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                        {project.status || 'Em Andamento'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              {recentActivity.filter(a => a.type === 'project').length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum projeto recente
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -383,22 +370,32 @@ export function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingInvoices.map((invoice, index) => (
-                <div key={index} className="flex flex-col space-y-2 p-3 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">{invoice.number}</h4>
-                    <span className="text-sm font-bold text-green-600">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(invoice.amount)}
-                    </span>
+              {recentActivity
+                .filter(activity => activity.type === 'invoice')
+                .slice(0, 3)
+                .map((invoice, index) => (
+                  <div key={index} className="flex flex-col space-y-2 p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium">{invoice.title}</h4>
+                      {invoice.amount && (
+                        <span className="text-sm font-bold text-green-600">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(invoice.amount)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{invoice.description}</span>
+                      <span className="text-red-600">
+                        {new Date(invoice.date).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{invoice.client}</span>
-                    <span className="text-red-600">
-                      Vence: {new Date(invoice.dueDate).toLocaleDateString('pt-BR')}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              {recentActivity.filter(a => a.type === 'invoice').length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma fatura recente
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

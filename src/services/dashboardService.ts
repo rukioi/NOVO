@@ -309,3 +309,270 @@ export class DashboardService {
 }
 
 export const dashboardService = new DashboardService();
+import { database } from '../config/database';
+import { clientsService } from './clientsService';
+import { projectsService } from './projectsService';
+import { transactionsService } from './transactionsService';
+import { invoicesService } from './invoicesService';
+import { tasksService } from './tasksService';
+
+interface DashboardMetrics {
+  financial: {
+    revenue: number;
+    expenses: number;
+    balance: number;
+    thisMonth: {
+      revenue: number;
+      expenses: number;
+    };
+    invoices: {
+      total: number;
+      paid: number;
+      pending: number;
+      overdue: number;
+    };
+  };
+  clients: {
+    total: number;
+    active: number;
+    inactive: number;
+    thisMonth: number;
+  };
+  projects: {
+    total: number;
+    contacted: number;
+    proposal: number;
+    won: number;
+    lost: number;
+    thisMonth: number;
+  };
+  tasks: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    notStarted: number;
+    urgent: number;
+  };
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'client' | 'project' | 'task' | 'transaction' | 'invoice' | 'publication';
+  title: string;
+  description: string;
+  date: string;
+  status?: string;
+  amount?: number;
+}
+
+class DashboardService {
+  async getDashboardMetrics(tenantId: string, userId: string, accountType: string): Promise<DashboardMetrics> {
+    try {
+      // Get financial metrics
+      const currentMonth = new Date();
+      currentMonth.setDate(1);
+      currentMonth.setHours(0, 0, 0, 0);
+      
+      const financialQuery = `
+        SELECT 
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_revenue,
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
+          SUM(CASE WHEN type = 'income' AND created_at >= $1 THEN amount ELSE 0 END) as monthly_revenue,
+          SUM(CASE WHEN type = 'expense' AND created_at >= $1 THEN amount ELSE 0 END) as monthly_expenses
+        FROM ${tenantId}.transactions
+        WHERE status = 'completed'
+      `;
+      
+      const financialResult = await database.query(financialQuery, [currentMonth.toISOString()]);
+      const financial = financialResult.rows[0] || {};
+
+      // Get invoice metrics
+      const invoiceQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+          SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue
+        FROM ${tenantId}.invoices
+      `;
+      
+      const invoiceResult = await database.query(invoiceQuery);
+      const invoices = invoiceResult.rows[0] || {};
+
+      // Get client metrics
+      const clientQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
+          SUM(CASE WHEN created_at >= $1 THEN 1 ELSE 0 END) as this_month
+        FROM ${tenantId}.clients
+      `;
+      
+      const clientResult = await database.query(clientQuery, [currentMonth.toISOString()]);
+      const clients = clientResult.rows[0] || {};
+
+      // Get project metrics
+      const projectQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN stage = 'contacted' THEN 1 ELSE 0 END) as contacted,
+          SUM(CASE WHEN stage = 'proposal' THEN 1 ELSE 0 END) as proposal,
+          SUM(CASE WHEN stage = 'won' THEN 1 ELSE 0 END) as won,
+          SUM(CASE WHEN stage = 'lost' THEN 1 ELSE 0 END) as lost,
+          SUM(CASE WHEN created_at >= $1 THEN 1 ELSE 0 END) as this_month
+        FROM ${tenantId}.projects
+      `;
+      
+      const projectResult = await database.query(projectQuery, [currentMonth.toISOString()]);
+      const projects = projectResult.rows[0] || {};
+
+      // Get task metrics
+      const taskQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+          SUM(CASE WHEN status = 'not_started' THEN 1 ELSE 0 END) as not_started,
+          SUM(CASE WHEN priority = 'high' THEN 1 ELSE 0 END) as urgent
+        FROM ${tenantId}.tasks
+      `;
+      
+      const taskResult = await database.query(taskQuery);
+      const tasks = taskResult.rows[0] || {};
+
+      return {
+        financial: {
+          revenue: parseFloat(financial.total_revenue || '0'),
+          expenses: parseFloat(financial.total_expenses || '0'),
+          balance: parseFloat(financial.total_revenue || '0') - parseFloat(financial.total_expenses || '0'),
+          thisMonth: {
+            revenue: parseFloat(financial.monthly_revenue || '0'),
+            expenses: parseFloat(financial.monthly_expenses || '0'),
+          },
+          invoices: {
+            total: parseInt(invoices.total || '0'),
+            paid: parseInt(invoices.paid || '0'),
+            pending: parseInt(invoices.pending || '0'),
+            overdue: parseInt(invoices.overdue || '0'),
+          },
+        },
+        clients: {
+          total: parseInt(clients.total || '0'),
+          active: parseInt(clients.active || '0'),
+          inactive: parseInt(clients.inactive || '0'),
+          thisMonth: parseInt(clients.this_month || '0'),
+        },
+        projects: {
+          total: parseInt(projects.total || '0'),
+          contacted: parseInt(projects.contacted || '0'),
+          proposal: parseInt(projects.proposal || '0'),
+          won: parseInt(projects.won || '0'),
+          lost: parseInt(projects.lost || '0'),
+          thisMonth: parseInt(projects.this_month || '0'),
+        },
+        tasks: {
+          total: parseInt(tasks.total || '0'),
+          completed: parseInt(tasks.completed || '0'),
+          inProgress: parseInt(tasks.in_progress || '0'),
+          notStarted: parseInt(tasks.not_started || '0'),
+          urgent: parseInt(tasks.urgent || '0'),
+        },
+      };
+    } catch (error) {
+      console.error('Error getting dashboard metrics:', error);
+      throw new Error('Failed to get dashboard metrics');
+    }
+  }
+
+  async getRecentActivity(tenantId: string, userId: string, limit: number = 10): Promise<RecentActivity[]> {
+    try {
+      const query = `
+        (
+          SELECT 'client' as type, name as title, 
+                 'Cliente adicionado' as description, 
+                 created_at as date, status, null as amount, id
+          FROM ${tenantId}.clients 
+          ORDER BY created_at DESC LIMIT 5
+        )
+        UNION ALL
+        (
+          SELECT 'project' as type, name as title, 
+                 'Projeto atualizado' as description, 
+                 updated_at as date, stage as status, value as amount, id
+          FROM ${tenantId}.projects 
+          ORDER BY updated_at DESC LIMIT 5
+        )
+        UNION ALL
+        (
+          SELECT 'task' as type, title, 
+                 'Tarefa modificada' as description, 
+                 updated_at as date, status, null as amount, id
+          FROM ${tenantId}.tasks 
+          ORDER BY updated_at DESC LIMIT 5
+        )
+        UNION ALL
+        (
+          SELECT 'transaction' as type, description as title, 
+                 'Transação registrada' as description, 
+                 created_at as date, status, amount, id
+          FROM ${tenantId}.transactions 
+          ORDER BY created_at DESC LIMIT 5
+        )
+        ORDER BY date DESC LIMIT $1
+      `;
+
+      const result = await database.query(query, [limit]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        description: row.description,
+        date: row.date,
+        status: row.status,
+        amount: row.amount ? parseFloat(row.amount) : undefined,
+      }));
+    } catch (error) {
+      console.error('Error getting recent activity:', error);
+      return [];
+    }
+  }
+
+  async getChartData(tenantId: string, accountType: string, period: string = '30d') {
+    try {
+      const days = parseInt(period.replace('d', ''));
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const query = `
+        SELECT 
+          DATE(created_at) as date,
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as revenue,
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expenses
+        FROM ${tenantId}.transactions
+        WHERE created_at >= $1 AND status = 'completed'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `;
+
+      const result = await database.query(query, [startDate.toISOString()]);
+      
+      return {
+        revenue: result.rows.map(row => ({
+          date: row.date,
+          value: parseFloat(row.revenue || '0'),
+        })),
+        expenses: result.rows.map(row => ({
+          date: row.date,
+          value: parseFloat(row.expenses || '0'),
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting chart data:', error);
+      return { revenue: [], expenses: [] };
+    }
+  }
+}
+
+export const dashboardService = new DashboardService();
