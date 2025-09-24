@@ -186,24 +186,35 @@ export class AuthService {
     // Validate registration key
     const validKeys = await database.findValidRegistrationKeys();
     console.log('Available keys:', validKeys.length);
+    console.log('Looking for key:', key.substring(0, 8) + '...');
     
     let registrationKey = null;
     
     // Try to find a matching key by comparing the plain key with stored hashes
     for (const validKey of validKeys) {
       try {
-        if (validKey.key_hash && await bcrypt.compare(key, validKey.key_hash)) {
+        console.log('Comparing with key ID:', validKey.id, 'hash preview:', validKey.keyHash ? validKey.keyHash.substring(0, 10) + '...' : 'null');
+        
+        // Use the correct field name based on Prisma schema
+        const keyHashField = validKey.keyHash || validKey.key_hash;
+        
+        if (keyHashField && await bcrypt.compare(key, keyHashField)) {
+          console.log('Key match found for ID:', validKey.id);
           registrationKey = validKey;
           break;
         }
       } catch (error) {
-        console.error('Error comparing key hash:', error);
+        console.error('Error comparing key hash for ID', validKey.id, ':', error);
         continue;
       }
     }
 
     if (!registrationKey) {
       console.log('Registration key not found. Provided key:', key.substring(0, 8) + '...');
+      console.log('Available key hashes:', validKeys.map(k => ({ 
+        id: k.id, 
+        hashPreview: (k.keyHash || k.key_hash)?.substring(0, 10) + '...' 
+      })));
       throw new Error('Invalid or expired registration key');
     }
 
@@ -255,16 +266,19 @@ export class AuthService {
     const user = await database.createUser(userData);
 
     // Update registration key usage
+    const currentUsedLogs = registrationKey.usedLogs || registrationKey.used_logs;
+    const usedLogsArray = currentUsedLogs ? (typeof currentUsedLogs === 'string' ? JSON.parse(currentUsedLogs) : currentUsedLogs) : [];
+    
     await database.updateRegistrationKeyUsage(registrationKey.id, {
-      uses_left: registrationKey.uses_left - 1,
-      used_logs: JSON.stringify([
-        ...(registrationKey.used_logs ? JSON.parse(registrationKey.used_logs) : []),
+      usesLeft: (registrationKey.usesLeft || registrationKey.uses_left) - 1,
+      usedLogs: [
+        ...usedLogsArray,
         {
           userId: user.id,
           email: user.email,
           usedAt: new Date().toISOString()
         }
-      ])
+      ]
     });
 
     const tokens = await this.generateTokens(user);

@@ -258,6 +258,12 @@ export class Database {
         }
       });
       console.log('Found valid registration keys:', keys.length);
+      console.log('Keys details:', keys.map(k => ({ 
+        id: k.id, 
+        accountType: k.accountType, 
+        usesLeft: k.usesLeft,
+        hashPreview: k.keyHash?.substring(0, 10) + '...'
+      })));
       return keys;
     } catch (error) {
       console.error('Error finding valid registration keys:', error);
@@ -269,8 +275,12 @@ export class Database {
     try {
       await prisma.registrationKey.update({
         where: { id },
-        data: updateData
+        data: {
+          usesLeft: updateData.usesLeft,
+          usedLogs: updateData.usedLogs
+        }
       });
+      console.log('Registration key usage updated successfully for ID:', id);
     } catch (error) {
       console.error('Error updating registration key usage:', error);
       throw error;
