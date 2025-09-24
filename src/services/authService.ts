@@ -243,11 +243,11 @@ export class AuthService {
       // Create new tenant
       tenant = await database.createTenant({
         name: `${name}'s Law Firm`,
-        schema_name: `tenant_${Date.now()}`,
-        plan_type: 'basic',
-        is_active: true,
-        max_users: 5,
-        max_storage: 1073741824, // 1GB
+        schemaName: `tenant_${Date.now()}`,
+        planType: 'basic',
+        isActive: true,
+        maxUsers: 5,
+        maxStorage: 1073741824, // 1GB
       });
       isNewTenant = true;
     }
@@ -257,10 +257,10 @@ export class AuthService {
       email,
       password: hashedPassword,
       name,
-      account_type: registrationKey.account_type,
-      tenant_id: tenant.id,
-      is_active: true,
-      must_change_password: false,
+      accountType: registrationKey.account_type,
+      tenantId: tenant.id,
+      isActive: true,
+      mustChangePassword: false,
     };
 
     const user = await database.createUser(userData);

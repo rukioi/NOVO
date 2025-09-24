@@ -95,8 +95,19 @@ export class Database {
 
   async createUser(userData: any) {
     try {
+      // Convert snake_case to camelCase for Prisma
+      const prismaData = {
+        email: userData.email,
+        password: userData.password,
+        name: userData.name,
+        accountType: userData.account_type || userData.accountType,
+        tenantId: userData.tenant_id || userData.tenantId,
+        isActive: userData.is_active !== undefined ? userData.is_active : userData.isActive,
+        mustChangePassword: userData.must_change_password !== undefined ? userData.must_change_password : userData.mustChangePassword,
+      };
+      
       const user = await prisma.user.create({
-        data: userData,
+        data: prismaData,
         include: { tenant: true }
       });
       return user;
@@ -154,8 +165,18 @@ export class Database {
 
   async createTenant(tenantData: any) {
     try {
+      // Convert snake_case to camelCase for Prisma
+      const prismaData = {
+        name: tenantData.name,
+        schemaName: tenantData.schema_name || tenantData.schemaName,
+        planType: tenantData.plan_type || tenantData.planType,
+        isActive: tenantData.is_active !== undefined ? tenantData.is_active : tenantData.isActive,
+        maxUsers: tenantData.max_users || tenantData.maxUsers,
+        maxStorage: tenantData.max_storage || tenantData.maxStorage,
+      };
+      
       const tenant = await prisma.tenant.create({
-        data: tenantData
+        data: prismaData
       });
       return tenant;
     } catch (error) {
