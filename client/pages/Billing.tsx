@@ -183,10 +183,27 @@ export function Billing() {
   const [editingDocument, setEditingDocument] = useState<any>(undefined);
   const [viewingDocument, setViewingDocument] = useState<any>(null);
 
-  const [estimates, setEstimates] = useState<Estimate[]>(mockEstimates);
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load billing data from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const { estimates: estimatesData, invoices: invoicesData } = await loadBillingFromAPI();
+        setEstimates(estimatesData);
+        setInvoices(invoicesData);
+      } catch (error) {
+        console.error('Error loading billing data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    loadData();
+  }, []);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');

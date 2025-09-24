@@ -142,24 +142,60 @@ const mockTasks: Task[] = [
     status: 'completed',
     priority: 'urgent',
     assignedTo: 'Dr. Silva',
-// Load tasks from API
-const loadTasksFromAPI = async () => {
-  try {
-    const response = await fetch('/api/tasks', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.tasks || [];
-    }
-  } catch (error) {
-    console.warn('Could not load tasks from API:', error);
-  }
-  return [];
-};
+    projectId: '1',
+    projectTitle: 'Ação Previdenciária - João Santos',
+    clientId: '1',
+    clientName: 'João Santos',
+    tags: ['INSS', 'Audiência', 'Previdenciário'],
+    estimatedHours: 3,
+    actualHours: 3.5,
+    progress: 100,
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-28T16:45:00Z',
+    completedAt: '2024-01-28T16:45:00Z',
+    notes: 'Audiência realizada com sucesso. Aguardando decisão.',
+    attachments: [],
+    subtasks: [
+      {
+        id: '7',
+        title: 'Preparar documentação',
+        completed: true,
+        createdAt: '2024-01-15T08:00:00Z',
+        completedAt: '2024-01-20T09:30:00Z',
+      },
+      {
+        id: '8',
+        title: 'Comparecer à audiência',
+        completed: true,
+        createdAt: '2024-01-15T08:00:00Z',
+        completedAt: '2024-01-28T16:45:00Z',
+      },
+    ],
+  },
+  {
+    id: '4',
+    title: 'Análise de viabilidade processual',
+    description: 'Estudar caso e avaliar chances de sucesso na ação judicial.',
+    startDate: '2024-01-25T00:00:00Z',
+    endDate: '2024-02-05T00:00:00Z',
+    status: 'on_hold',
+    priority: 'low',
+    assignedTo: 'Ana Paralegal',
+    projectId: '4',
+    projectTitle: 'Ação Trabalhista - Pedro Souza',
+    clientId: '4',
+    clientName: 'Pedro Souza',
+    tags: ['Análise', 'Trabalhista', 'Viabilidade'],
+    estimatedHours: 8,
+    actualHours: 1,
+    progress: 15,
+    createdAt: '2024-01-25T11:20:00Z',
+    updatedAt: '2024-01-26T14:10:00Z',
+    notes: 'Pausado até recebimento de documentos adicionais.',
+    attachments: [],
+    subtasks: [],
+  },
+];
 
 interface TasksListViewProps {
   tasks: Task[];
@@ -302,12 +338,30 @@ export function Tasks() {
   const [showTaskView, setShowTaskView] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load tasks from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const tasksData = await loadTasksFromAPI();
+        setTasks(tasksData);
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Filter tasks based on search, status, priority, and assignee
   const filteredTasks = useMemo(() => {

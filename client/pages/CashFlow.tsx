@@ -213,12 +213,30 @@ export function CashFlow() {
   const [showTransactionView, setShowTransactionView] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [forceRecurring, setForceRecurring] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load transactions from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const transactionsData = await loadTransactionsFromAPI();
+        setTransactions(transactionsData);
+      } catch (error) {
+        console.error('Error loading transactions:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Log para debug - ajuda a identificar problemas
   console.log('CashFlow component rendered:', {
