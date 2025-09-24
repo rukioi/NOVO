@@ -62,10 +62,12 @@ export const authenticateAdminToken = async (
 
     next();
   } catch (error) {
+    console.error('Admin token verification failed:', error);
     return res.status(403).json({ 
       error: 'Invalid admin token',
       code: 'ADMIN_AUTH_003',
-      details: error instanceof Error ? error.message : 'Token verification failed'
+      details: error instanceof Error ? error.message : 'Token verification failed',
+      token_provided: !!token
     });
   }
 };

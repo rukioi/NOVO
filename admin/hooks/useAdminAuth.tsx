@@ -86,6 +86,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
+    // Clear any existing tokens first
+    localStorage.removeItem("admin_access_token");
+    localStorage.removeItem("admin_refresh_token");
+    
     // Mock authentication for development
     if (email === "admin@legalsaas.com" && password === "admin123") {
       const mockUser = {
