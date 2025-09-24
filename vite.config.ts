@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
       port: 5000,
       host: "localhost"
     },
+    allowedHosts: "all",
     fs: {
       allow: ["./client", "./shared", "./admin"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
