@@ -34,8 +34,10 @@ function AdminRoutes() {
 
 export function AdminApp() {
   return (
-    <AdminAuthProvider>
-      <AdminRoutes />
-    </AdminAuthProvider>
+    <div className="dark">
+      <AdminAuthProvider>
+        <AdminRoutes />
+      </AdminAuthProvider>
+    </div>
   );
 }

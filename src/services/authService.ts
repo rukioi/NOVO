@@ -196,7 +196,7 @@ export class AuthService {
         console.log('Comparing with key ID:', validKey.id, 'hash preview:', validKey.keyHash ? validKey.keyHash.substring(0, 10) + '...' : 'null');
         
         // Use the correct field name based on Prisma schema
-        const keyHashField = validKey.keyHash || validKey.key_hash;
+        const keyHashField = validKey.keyHash;
         
         if (keyHashField && await bcrypt.compare(key, keyHashField)) {
           console.log('Key match found for ID:', validKey.id);
@@ -213,7 +213,7 @@ export class AuthService {
       console.log('Registration key not found. Provided key:', key.substring(0, 8) + '...');
       console.log('Available key hashes:', validKeys.map(k => ({ 
         id: k.id, 
-        hashPreview: (k.keyHash || k.key_hash)?.substring(0, 10) + '...' 
+        hashPreview: k.keyHash?.substring(0, 10) + '...' 
       })));
       throw new Error('Invalid or expired registration key');
     }
@@ -232,10 +232,10 @@ export class AuthService {
     let isNewTenant = false;
 
     // Create or use existing tenant
-    if (registrationKey.tenant_id) {
+    if (registrationKey.tenantId) {
       // Use existing tenant
       const tenants = await database.getAllTenants();
-      tenant = tenants.find(t => t.id === registrationKey.tenant_id);
+      tenant = tenants.find(t => t.id === registrationKey.tenantId);
       if (!tenant) {
         throw new Error('Associated tenant not found');
       }
@@ -257,7 +257,7 @@ export class AuthService {
       email,
       password: hashedPassword,
       name,
-      accountType: registrationKey.account_type,
+      accountType: registrationKey.accountType,
       tenantId: tenant.id,
       isActive: true,
       mustChangePassword: false,
@@ -266,11 +266,11 @@ export class AuthService {
     const user = await database.createUser(userData);
 
     // Update registration key usage
-    const currentUsedLogs = registrationKey.usedLogs || registrationKey.used_logs;
+    const currentUsedLogs = registrationKey.usedLogs;
     const usedLogsArray = currentUsedLogs ? (typeof currentUsedLogs === 'string' ? JSON.parse(currentUsedLogs) : currentUsedLogs) : [];
     
     await database.updateRegistrationKeyUsage(registrationKey.id, {
-      usesLeft: (registrationKey.usesLeft || registrationKey.uses_left) - 1,
+      usesLeft: registrationKey.usesLeft - 1,
       usedLogs: [
         ...usedLogsArray,
         {

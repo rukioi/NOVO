@@ -53,7 +53,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-white">
         {/* Logo/Brand */}
@@ -131,10 +131,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="bg-background border-b border-border px-6 py-4">
+        <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold">Administrative Panel</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Administrative Panel</h2>
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="outline" className="text-green-600 border-green-600">
@@ -146,7 +146,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-muted/30">
+        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
           {children}
         </main>
       </div>
