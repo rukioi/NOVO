@@ -11,10 +11,12 @@ export default defineConfig(({ mode }) => ({
     cors: true,
     hmr: {
       host: "0.0.0.0",
-      port: 5001, // Use different port for HMR to avoid conflicts
-      clientPort: 5001,
+      port: 5000,
     },
-    allowedHosts: "all", // Allow all hosts in development
+    allowedHosts: [
+      '8a85e153-2921-423e-b2f7-467f10582209-00-14tack9nfpjwm.janeway.replit.dev',
+      '*',
+    ],
     fs: {
       allow: ["./client", "./shared", "./admin", "./src", "./"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**"],
