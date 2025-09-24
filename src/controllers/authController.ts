@@ -1,4 +1,3 @@
-
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { authService } from '../services/authService';
@@ -27,69 +26,22 @@ export class AuthController {
       console.log('Registration attempt:', { email: req.body.email, name: req.body.name });
 
       const validatedData = registerSchema.parse(req.body);
-      const keyRecord = await database.getRegistrationKey(validatedData.key);
 
-      if (!keyRecord) {
-        return res.status(400).json({ error: 'Invalid registration key' });
-      }
+      // Use the authService.registerUser method which handles all the logic
+      const result = await authService.registerUser(
+        validatedData.email,
+        validatedData.password,
+        validatedData.name,
+        validatedData.key
+      );
 
-      const hashedPassword = await authService.hashPassword(validatedData.password);
-
-      // 4. Create tenant if key doesn't have one
-      let tenantId = keyRecord.tenant_id;
-      let tenantName = 'Default Tenant';
-
-      if (!tenantId) {
-        // Create new tenant
-        const { tenantService } = await import('../services/tenantService');
-        const newTenantId = await tenantService.createTenant(`${validatedData.name}'s Organization`);
-        console.log('Created new tenant:', newTenantId);
-
-        // Update key with new tenantId
-        await database.updateRegistrationKeyTenant(validatedData.key, newTenantId);
-        tenantId = newTenantId;
-
-        // Get tenant name
-        const tenants = await database.getAllTenants();
-        const tenant = tenants.rows.find(t => t.id === tenantId);
-        tenantName = tenant?.name || 'Default Tenant';
-      } else {
-        // Get existing tenant name
-        const tenants = await database.getAllTenants();
-        const tenant = tenants.rows.find(t => t.id === tenantId);
-        tenantName = tenant?.name || 'Default Tenant';
-      }
-
-      // 5. Create user
-      const userData = {
-        email: validatedData.email,
-        password: hashedPassword,
-        name: validatedData.name,
-        accountType: keyRecord.account_type as any,
-        tenantId: tenantId,
-        isActive: true,
-        mustChangePassword: false,
-      };
-
-      console.log('Creating user with data:', userData);
-      const user = await database.createUser(userData);
-
-      const tokens = await authService.generateTokens(user.id, user.account_type, user.tenantId);
-
-      console.log('Registration successful:', { userId: user.id, tenantId: user.tenant_id });
+      console.log('Registration successful:', { userId: result.user.id, tenantId: result.user.tenantId });
 
       res.status(201).json({
         message: 'User registered successfully',
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          accountType: user.accountType,
-          tenantId: user.tenantId,
-          tenantName: tenantName,
-        },
-        tokens,
-        isNewTenant: !keyRecord.tenant_id, // Indicate if a new tenant was created
+        user: result.user,
+        tokens: result.tokens,
+        isNewTenant: result.isNewTenant,
       });
     } catch (error) {
       console.error('Registration error:', error);
