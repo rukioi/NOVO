@@ -1,7 +1,8 @@
+
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { authService } from '../services/authService';
-import { database } from '../database'; // Assuming database is imported here
+import { database } from '../config/database';
 
 // Validation schemas
 const registerSchema = z.object({
