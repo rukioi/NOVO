@@ -92,23 +92,6 @@ export class AdminController {
       }));
 
       res.json(formattedKeys);
-
-      // Mapear para formato esperado pelo frontend
-      const formattedKeys = keys.map(key => ({
-        id: key.id,
-        accountType: key.accountType,
-        usesAllowed: key.usesAllowed,
-        usesLeft: key.usesLeft,
-        singleUse: key.singleUse,
-        expiresAt: key.expiresAt,
-        revoked: key.revoked,
-        createdAt: key.createdAt,
-        tenant: key.tenantId ? { id: key.tenantId } : null,
-        usageCount: key.usesAllowed - key.usesLeft,
-        metadata: key.metadata,
-      }));
-
-      res.json({ keys: formattedKeys });
     } catch (error) {
       console.error('Get registration keys error:', error);
       res.status(500).json({
