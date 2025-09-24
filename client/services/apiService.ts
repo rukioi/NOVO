@@ -134,24 +134,90 @@ class ApiService {
   }
 
   async getProfile() {
-    return this.request('/auth/me');
+    try {
+      return await this.request('/auth/me');
+    } catch (error) {
+      // If API fails, try to get from localStorage
+      const savedProfile = localStorage.getItem('user_profile');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        return {
+          user: {
+            id: 'local-user',
+            name: profile.name,
+            email: profile.email,
+            phone: profile.phone,
+            bio: profile.bio
+          }
+        };
+      }
+      throw error;
+    }
   }
 
   // Dashboard
   async getDashboardMetrics() {
-    return this.request('/dashboard/metrics');
+    try {
+      return await this.request('/dashboard/metrics');
+    } catch (error) {
+      console.warn('Dashboard metrics API not available, returning empty data');
+      return {
+        financial: {
+          revenue: 0,
+          expenses: 0,
+          balance: 0,
+          thisMonth: { revenue: 0, expenses: 0 },
+          invoices: { total: 0, paid: 0, pending: 0, overdue: 0 }
+        },
+        clients: { total: 0, active: 0, inactive: 0, thisMonth: 0 },
+        projects: { total: 0, contacted: 0, proposal: 0, won: 0, lost: 0, thisMonth: 0 },
+        tasks: { total: 0, completed: 0, inProgress: 0, notStarted: 0, urgent: 0 }
+      };
+    }
   }
 
   async getFinancialData() {
-    return this.request('/dashboard/financeiro');
+    try {
+      return await this.request('/dashboard/financeiro');
+    } catch (error) {
+      console.warn('Financial data API not available');
+      return {
+        revenue: 0,
+        expenses: 0,
+        balance: 0,
+        transactions: [],
+        charts: []
+      };
+    }
   }
 
   async getClientMetrics() {
-    return this.request('/dashboard/clientes');
+    try {
+      return await this.request('/dashboard/clientes');
+    } catch (error) {
+      console.warn('Client metrics API not available');
+      return {
+        totalClients: 0,
+        newThisMonth: 0,
+        growthPercentage: 0,
+        byStatus: []
+      };
+    }
   }
 
   async getProjectMetrics() {
-    return this.request('/dashboard/projetos');
+    try {
+      return await this.request('/dashboard/projetos');
+    } catch (error) {
+      console.warn('Project metrics API not available');
+      return {
+        totalProjects: 0,
+        activeProjects: 0,
+        overdueProjects: 0,
+        averageProgress: 0,
+        totalRevenue: 0
+      };
+    }
   }
 
   // Clients
@@ -314,12 +380,22 @@ class ApiService {
 
   // Dashboard - Recent Activity
   async getRecentActivity(limit: number = 10) {
-    return this.request(`/dashboard/recent-activity?limit=${limit}`);
+    try {
+      return await this.request(`/dashboard/recent-activity?limit=${limit}`);
+    } catch (error) {
+      console.warn('Recent activity API not available');
+      return [];
+    }
   }
 
   // Dashboard - Chart Data
   async getChartData(period: string = '30d') {
-    return this.request(`/dashboard/chart-data?period=${period}`);
+    try {
+      return await this.request(`/dashboard/chart-data?period=${period}`);
+    } catch (error) {
+      console.warn('Chart data API not available');
+      return { revenue: [], expenses: [] };
+    }
   }
 
   // Notifications

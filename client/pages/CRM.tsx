@@ -60,96 +60,42 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
 
-// Mock data - in real app would come from API
-const mockClients: Client[] = [
-  {
-    id: "1",
-    name: "Maria Silva Santos",
-    organization: "Silva & Associates",
-    email: "maria@silva.com.br",
-    mobile: "(11) 99999-1234",
-    country: "BR",
-    state: "São Paulo",
-    address: "Rua Augusta, 123, Cerqueira César",
-    city: "São Paulo",
-    zipCode: "01305-000",
-    budget: 15000,
-    currency: "BRL",
-    level: "Premium",
-    tags: ["Direito Civil", "Prioritário", "Empresa", "Premium"],
-    description: "Cliente premium com múltiplos casos",
-    cpf: "123.456.789-00",
-    rg: "12.345.678-9",
-    professionalTitle: "Empresária",
-    maritalStatus: "married",
-    birthDate: "1980-05-15",
-    inssStatus: "active",
-    amountPaid: 8000,
-    referredBy: "João Advogado",
-    registeredBy: "Dr. Silva - Sócio Gerente",
-    createdAt: "2024-01-01T10:00:00Z",
-    updatedAt: "2024-01-15T14:30:00Z",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "João Carlos Oliveira",
-    email: "joao@email.com",
-    mobile: "(11) 88888-5678",
-    country: "BR",
-    state: "Rio de Janeiro",
-    address: "Av. Copacabana, 456",
-    city: "Rio de Janeiro",
-    zipCode: "22070-000",
-    budget: 8500,
-    currency: "BRL",
-    tags: ["Trabalhista", "Demissão", "Rescisão"],
-    description: "Caso trabalhista - demissão sem justa causa",
-    cpf: "987.654.321-00",
-    maritalStatus: "single",
-    birthDate: "1985-09-20",
-    inssStatus: "inactive",
-    registeredBy: "Dra. Costa - Sócia Diretora",
-    createdAt: "2024-01-05T09:15:00Z",
-    updatedAt: "2024-01-10T16:45:00Z",
-    status: "active",
-  },
-];
+// Load data from API instead of mock data
+const loadClientsFromAPI = async () => {
+  try {
+    const response = await fetch('/api/clients', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.clients || [];
+    }
+  } catch (error) {
+    console.warn('Could not load clients from API:', error);
+  }
+  return [];
+};
 
-const mockDeals: Deal[] = [
-  {
-    id: "1",
-    title: "Consultoria Jurídica Empresarial",
-    contactName: "Ana Costa",
-    organization: "TechStart LTDA",
-    email: "ana@techstart.com",
-    mobile: "(11) 77777-9999",
-    address: "Rua da Inovação, 789, Vila Olímpia, São Paulo - SP",
-    budget: 25000,
-    currency: "BRL",
-    stage: "proposal",
-    tags: ["Direito Empresarial", "Startup"],
-    description: "Necessita de assessoria jurídica para expansão da empresa",
-    createdAt: "2024-01-10T10:00:00Z",
-    updatedAt: "2024-01-15T14:30:00Z",
-  },
-  {
-    id: "2",
-    title: "Ação Previdenciária",
-    contactName: "Roberto Silva",
-    email: "roberto@email.com",
-    mobile: "(11) 66666-8888",
-    address: "Rua das Flores, 321, Centro, São Paulo - SP",
-    budget: 12000,
-    currency: "BRL",
-    stage: "contacted",
-    tags: ["Previdenciário"],
-    description: "Aposentadoria negada pelo INSS",
-    createdAt: "2024-01-12T11:30:00Z",
-    updatedAt: "2024-01-16T09:15:00Z",
-  },
-];
-
+const loadDealsFromAPI = async () => {
+  try {
+    const response = await fetch('/api/deals', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.deals || [];
+    }
+  } catch (error) {
+    console.warn('Could not load deals from API:', error);
+  }
+  return [];
+};
 interface PipelineListViewProps {
   deals: Deal[];
   stages: PipelineStage[];

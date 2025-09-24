@@ -150,8 +150,8 @@ export function AdminRegistrationKeys() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Registration Keys</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Registration Keys</h1>
+            <p className="text-slate-600 dark:text-slate-400">
               Manage registration keys for new accounts
             </p>
           </div>

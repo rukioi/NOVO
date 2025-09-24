@@ -69,15 +69,34 @@ export function useDashboard() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiService.getDashboardMetrics();
-      setMetrics(response);
+      
+      // Try to get real data from API
+      try {
+        const response = await apiService.getDashboardMetrics();
+        setMetrics(response);
+      } catch (apiError) {
+        console.warn('API not available, using fallback data:', apiError);
+        // Fallback to empty metrics instead of mock data
+        setMetrics({
+          financial: {
+            revenue: 0,
+            expenses: 0,
+            balance: 0,
+            thisMonth: { revenue: 0, expenses: 0 },
+            invoices: { total: 0, paid: 0, pending: 0, overdue: 0 }
+          },
+          clients: { total: 0, active: 0, inactive: 0, thisMonth: 0 },
+          projects: { total: 0, contacted: 0, proposal: 0, won: 0, lost: 0, thisMonth: 0 },
+          tasks: { total: 0, completed: 0, inProgress: 0, notStarted: 0, urgent: 0 }
+        });
+      }
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard metrics';
       setError(errorMessage);
       console.error('Dashboard metrics error:', err);
       
-      // Set empty metrics instead of throwing
+      // Set empty metrics on error
       setMetrics({
         financial: {
           revenue: 0,
@@ -97,8 +116,13 @@ export function useDashboard() {
 
   const loadRecentActivity = async (limit: number = 10) => {
     try {
-      const response = await apiService.getRecentActivity(limit);
-      setRecentActivity(response);
+      try {
+        const response = await apiService.getRecentActivity(limit);
+        setRecentActivity(response);
+      } catch (apiError) {
+        console.warn('Recent activity API not available:', apiError);
+        setRecentActivity([]);
+      }
       return response;
     } catch (err) {
       console.error('Recent activity error:', err);
@@ -108,8 +132,13 @@ export function useDashboard() {
 
   const loadChartData = async (period: string = '30d') => {
     try {
-      const response = await apiService.getChartData(period);
-      setChartData(response);
+      try {
+        const response = await apiService.getChartData(period);
+        setChartData(response);
+      } catch (apiError) {
+        console.warn('Chart data API not available:', apiError);
+        setChartData({ revenue: [], expenses: [] });
+      }
       return response;
     } catch (err) {
       console.error('Chart data error:', err);

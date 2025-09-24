@@ -71,16 +71,62 @@ export function UserProfileDialog({
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: "Dr. Advogado",
-      email: "advogado@escritorio.com.br",
-      phone: "(11) 99999-1234",
-      bio: "Advogado especialista em direito civil e trabalhista",
+      name: "",
+      email: "",
+      phone: "",
+      bio: "",
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
   });
 
+  // Load user data when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      const loadUserData = async () => {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            form.reset({
+              name: data.user.name || "",
+              email: data.user.email || "",
+              phone: data.user.phone || "",
+              bio: data.user.bio || "",
+              currentPassword: "",
+              newPassword: "",
+              confirmPassword: "",
+            });
+          } else {
+            // Fallback to localStorage
+            const savedProfile = localStorage.getItem('user_profile');
+            if (savedProfile) {
+              const profile = JSON.parse(savedProfile);
+              form.reset({
+                name: profile.name || "",
+                email: profile.email || "",
+                phone: profile.phone || "",
+                bio: profile.bio || "",
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('Could not load user profile:', error);
+        }
+      };
+
+      loadUserData();
+    }
+  }, [open, form]);
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -128,9 +174,39 @@ export function UserProfileDialog({
   const handleSubmit = async (data: ProfileFormData) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Try to update via API
+      try {
+        const response = await fetch('/api/auth/me', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          },
+          body: JSON.stringify(data)
+        });
 
+        if (response.ok) {
+          const updatedUser = await response.json();
+          // Save to localStorage as backup
+          localStorage.setItem('user_profile', JSON.stringify({
+            name: updatedUser.user.name,
+            email: updatedUser.user.email,
+            phone: updatedUser.user.phone,
+            bio: updatedUser.user.bio
+          }));
+        } else {
+          throw new Error('API update failed');
+        }
+      } catch (apiError) {
+        console.warn('API update failed, saving to localStorage:', apiError);
+        // Fallback to localStorage
+        localStorage.setItem('user_profile', JSON.stringify({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          bio: data.bio
+        }));
+      }
       const profileData = {
         ...data,
         avatar: avatarFile
@@ -142,6 +218,12 @@ export function UserProfileDialog({
       };
 
       console.log("Profile updated:", profileData);
+      
+      // Trigger a refresh of the layout to show updated name
+      window.dispatchEvent(new CustomEvent('userProfileUpdated', {
+        detail: { name: data.name, email: data.email }
+      }));
+      
       handleClose();
     } catch (error) {
       console.error("Error updating profile:", error);

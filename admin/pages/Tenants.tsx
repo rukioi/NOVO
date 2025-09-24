@@ -151,8 +151,8 @@ export function AdminTenants() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tenant Management</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Tenant Management</h1>
+            <p className="text-slate-600 dark:text-slate-400">
               Manage all tenants and their configurations
             </p>
           </div>

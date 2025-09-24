@@ -84,10 +84,46 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState({
+    name: "Dr. Advogado",
+    email: "advogado@escritorio.com.br"
+  });
 
   // Apply global dialog body freeze fix
   useDialogBodyFix();
 
+  // Load user profile from API or localStorage
+  React.useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        // Try to get from API first
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile({
+            name: data.user.name,
+            email: data.user.email
+          });
+        } else {
+          // Fallback to localStorage if available
+          const savedProfile = localStorage.getItem('user_profile');
+          if (savedProfile) {
+            setUserProfile(JSON.parse(savedProfile));
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load user profile:', error);
+        // Keep default values
+      }
+    };
+
+    loadUserProfile();
+  }, []);
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
@@ -234,9 +270,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex items-center justify-start gap-2 p-2">
                     <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium">Dr. Advogado</p>
+                      <p className="font-medium">{userProfile.name}</p>
                       <p className="w-[200px] truncate text-sm text-muted-foreground">
-                        advogado@escritorio.com.br
+                        {userProfile.email}
                       </p>
                     </div>
                   </div>

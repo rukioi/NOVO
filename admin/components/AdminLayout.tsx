@@ -146,7 +146,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
+        <main className="flex-1 overflow-auto bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
           {children}
         </main>
       </div>

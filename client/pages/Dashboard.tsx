@@ -123,7 +123,56 @@ function MetricCard({
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { metrics, recentActivity, chartData, isLoading, error } = useDashboard();
+  const { metrics, recentActivity, chartData, isLoading, error, loadDashboardMetrics } = useDashboard();
+  const [userProfile, setUserProfile] = useState({
+    name: "Dr. Advogado",
+    email: "advogado@escritorio.com.br"
+  });
+
+  // Load user profile
+  React.useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile({
+            name: data.user.name,
+            email: data.user.email
+          });
+        } else {
+          const savedProfile = localStorage.getItem('user_profile');
+          if (savedProfile) {
+            setUserProfile(JSON.parse(savedProfile));
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load user profile:', error);
+      }
+    };
+
+    loadUserProfile();
+  }, []);
+
+  // Listen for profile updates
+  React.useEffect(() => {
+    const handleProfileUpdate = (event: CustomEvent) => {
+      setUserProfile({
+        name: event.detail.name,
+        email: event.detail.email
+      });
+    };
+
+    window.addEventListener('userProfileUpdated', handleProfileUpdate as EventListener);
+    return () => {
+      window.removeEventListener('userProfileUpdated', handleProfileUpdate as EventListener);
+    };
+  }, []);
 
   const handleViewAllNotifications = () => {
     // Redirect to notifications page instead of showing notification
@@ -212,7 +261,7 @@ export function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Visão geral do seu escritório de advocacia
+            Bem-vindo, {userProfile.name.split(' ')[0]}! Visão geral do seu escritório
           </p>
         </div>
 

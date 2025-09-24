@@ -151,11 +151,11 @@ export function AdminDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Active Tenants</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">Active Tenants</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.tenants.active || 0}</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{metrics?.tenants.active || 0}</div>
               <p className="text-xs text-muted-foreground">
                 {metrics?.tenants.total || 0} total
               </p>
@@ -164,11 +164,11 @@ export function AdminDashboard() {
 
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">Total Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.users.total || 0}</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">{metrics?.users.total || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Across all tenants
               </p>
@@ -177,11 +177,11 @@ export function AdminDashboard() {
 
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Registration Keys</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">Registration Keys</CardTitle>
               <Key className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
                 {metrics?.registrationKeys.reduce((sum, key) => sum + key.count, 0) || 0}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -208,15 +208,15 @@ export function AdminDashboard() {
         {metrics?.registrationKeys && metrics.registrationKeys.length > 0 && (
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-gray-100">Registration Keys by Account Type</CardTitle>
+              <CardTitle className="text-slate-900 dark:text-slate-100">Registration Keys by Account Type</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 {metrics.registrationKeys.map((keyType) => (
-                  <div key={keyType.accountType} className="flex items-center justify-between p-3 border rounded-lg shadow-sm bg-gray-50 dark:bg-gray-900/30 dark:border-gray-700">
+                  <div key={keyType.accountType} className="flex items-center justify-between p-3 border rounded-lg shadow-sm bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{keyType.accountType}</p>
-                      <p className="text-sm text-muted-foreground">Account Type</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{keyType.accountType}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Account Type</p>
                     </div>
                     <Badge variant="secondary" className="text-lg px-3 py-1">
                       {keyType.count}
@@ -231,7 +231,7 @@ export function AdminDashboard() {
         {/* Recent Activity */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-gray-900 dark:text-gray-100">Recent System Activity</CardTitle>
+            <CardTitle className="text-slate-900 dark:text-slate-100">Recent System Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -244,10 +244,10 @@ export function AdminDashboard() {
                     <div className="flex items-start space-x-3">
                       {getActivityIcon(activity.level)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{activity.message}</p>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{activity.message}</p>
+                        <div className="flex items-center space-x-2 text-xs text-slate-600 dark:text-slate-400 mt-1 flex-wrap">
                           {activity.tenantName && (
-                            <span className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">Tenant: {activity.tenantName}</span>
+                            <span className="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-800 dark:text-slate-200">Tenant: {activity.tenantName}</span>
                           )}
                           <span className="hidden sm:inline">•</span>
                           <span>{new Date(activity.createdAt).toLocaleString()}</span>
@@ -259,7 +259,7 @@ export function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No recent activity</p>
+                  <p className="text-slate-600 dark:text-slate-400">No recent activity</p>
                 </div>
               )}
             </div>
