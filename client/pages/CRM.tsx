@@ -238,8 +238,8 @@ export function CRM() {
   const [dealInitialStage, setDealInitialStage] = useState<
     DealStage | undefined
   >();
-  const [clients, setClients] = useState<Client[]>(mockClients);
-  const [deals, setDeals] = useState<Deal[]>(mockDeals);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dealSearchTerm, setDealSearchTerm] = useState("");
@@ -252,6 +252,29 @@ export function CRM() {
   const [tempStageNames, setTempStageNames] = useState<{
     [key: string]: string;
   }>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load data from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [clientsData, dealsData] = await Promise.all([
+          loadClientsFromAPI(),
+          loadDealsFromAPI()
+        ]);
+        
+        setClients(clientsData);
+        setDeals(dealsData);
+      } catch (error) {
+        console.error('Error loading CRM data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Create safe dialog handler
   const safeSetEditingStages = createSafeOnOpenChange((open: boolean) =>
