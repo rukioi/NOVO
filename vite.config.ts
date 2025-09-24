@@ -14,9 +14,11 @@ export default defineConfig(({ mode }) => ({
       port: 5000,
     },
     allowedHosts: [
-      '8a85e153-2921-423e-b2f7-467f10582209-00-14tack9nfpjwm.janeway.replit.dev',
-      '*',
+      "8a85e153-2921-423e-b2f7-467f10582209-00-14tack9nfpjwm.janeway.replit.dev",
+      "474a55ca-2cab-4481-8b56-3589f1c543c5-00-36ci4gtwyvhbz.worf.replit.dev",
+      "*",
     ],
+
     fs: {
       allow: ["./client", "./shared", "./admin", "./src", "./"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**"],
