@@ -92,6 +92,8 @@ export class DashboardService {
         invoices: { total: 0, paid: 0, pending: 0, overdue: 0 }
       };
 
+      let publicationsStats;
+
       // Métricas financeiras apenas para COMPOSTA e GERENCIAL
       if (accountType === 'COMPOSTA' || accountType === 'GERENCIAL') {
         try {
@@ -121,6 +123,9 @@ export class DashboardService {
         }
       }
 
+      // Publications stats (isolado por usuário)
+      publicationsStats = await publicationsService.getPublicationsStats(tenantId, userId);
+
       return {
         financial: financialStats,
         clients: {
@@ -143,7 +148,8 @@ export class DashboardService {
           inProgress: tasksStats.inProgress || 0,
           notStarted: tasksStats.notStarted || 0,
           urgent: tasksStats.urgent || 0
-        }
+        },
+        publications: publicationsStats
       };
     } catch (error) {
       console.error('Error getting dashboard metrics:', error);
@@ -152,9 +158,9 @@ export class DashboardService {
   }
 
   /**
-   * Obtém atividades recentes
+   * Obtém atividades recentes do usuário
    */
-  async getRecentActivity(tenantId: string, limit: number = 10): Promise<RecentActivity[]> {
+  async getRecentActivity(tenantId: string, userId: string, limit: number = 10): Promise<RecentActivity[]> {
     try {
       const activities: RecentActivity[] = [];
 
@@ -221,72 +227,6 @@ export class DashboardService {
           });
         });
       }
-
-      // Ordenar por data e limitar
-      return activities
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, limit);
-    } catch (error) {
-      console.error('Error getting recent activity:', error);
-      throw error;
-    }
-  }
-    } catch (error) {
-      console.error('Error getting dashboard metrics:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obtém atividades recentes do usuário
-   */
-  async getRecentActivity(tenantId: string, userId: string, limit: number = 10): Promise<RecentActivity[]> {
-    try {
-      const activities: RecentActivity[] = [];
-
-      // Buscar atividades de cada módulo
-      const [recentClients, recentProjects, recentTasks] = await Promise.all([
-        clientsService.getClients(tenantId, { limit: 5, page: 1 }),
-        projectsService.getProjects(tenantId, { limit: 5, page: 1 }),
-        tasksService.getTasks(tenantId, 5, 0)
-      ]);
-
-      // Adicionar clientes recentes
-      recentClients.clients.forEach(client => {
-        activities.push({
-          id: client.id,
-          type: 'client',
-          title: `Cliente: ${client.name}`,
-          description: `Novo cliente adicionado`,
-          date: client.created_at,
-          status: client.status
-        });
-      });
-
-      // Adicionar projetos recentes
-      recentProjects.projects.forEach(project => {
-        activities.push({
-          id: project.id,
-          type: 'project',
-          title: `Projeto: ${project.title}`,
-          description: `Cliente: ${project.client_name}`,
-          date: project.created_at,
-          status: project.status,
-          amount: project.budget
-        });
-      });
-
-      // Adicionar tarefas recentes
-      recentTasks.tasks.forEach(task => {
-        activities.push({
-          id: task.id,
-          type: 'task',
-          title: `Tarefa: ${task.title}`,
-          description: `Progresso: ${task.progress}%`,
-          date: task.created_at,
-          status: task.status
-        });
-      });
 
       // Ordenar por data e limitar
       return activities
