@@ -142,24 +142,41 @@ const mockProjects: Project[] = [
     assignedTo: ['Dr. Oliveira', 'Dr. Silva', 'Ana Paralegal'],
     priority: 'urgent',
     progress: 40,
-// Load projects from API
-const loadProjectsFromAPI = async () => {
-  try {
-    const response = await fetch('/api/projects', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    createdAt: '2024-01-12T14:20:00Z',
+    updatedAt: '2024-01-25T16:10:00Z',
+    notes: 'Empresa em situação crítica. Prioridade máxima.',
+    attachments: []
+  },
+  {
+    id: '4',
+    title: 'Ação Trabalhista - Pedro Souza',
+    description: 'Ação contra ex-empregador por horas extras não pagas e verbas rescisórias.',
+    clientName: 'Pedro Souza',
+    contacts: [
+      {
+        id: '5',
+        name: 'Pedro Souza',
+        email: 'pedro@email.com',
+        phone: '(11) 55555-7777',
+        role: 'Cliente'
       }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.projects || [];
-    }
-  } catch (error) {
-    console.warn('Could not load projects from API:', error);
+    ],
+    address: 'Rua do Trabalho, 789, São Paulo - SP',
+    budget: 15000,
+    currency: 'BRL',
+    status: 'contacted',
+    startDate: '2024-01-25T00:00:00Z',
+    dueDate: '2024-05-15T00:00:00Z',
+    tags: ['Trabalhista', 'Horas Extras'],
+    assignedTo: ['Dra. Trabalho'],
+    priority: 'medium',
+    progress: 10,
+    createdAt: '2024-01-25T08:30:00Z',
+    updatedAt: '2024-01-25T08:30:00Z',
+    notes: 'Início da coleta de documentos.',
+    attachments: []
   }
-  return [];
-};
+];
 
 interface ProjectCompactViewProps {
   projects: Project[];
@@ -283,11 +300,29 @@ export function Projects() {
   const [showProjectView, setShowProjectView] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'compact'>('kanban');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load projects from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const projectsData = await loadProjectsFromAPI();
+        setProjects(projectsData);
+      } catch (error) {
+        console.error('Error loading projects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Filter projects based on search, status, and priority
   const filteredProjects = useMemo(() => {

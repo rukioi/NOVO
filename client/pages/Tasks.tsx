@@ -142,60 +142,24 @@ const mockTasks: Task[] = [
     status: 'completed',
     priority: 'urgent',
     assignedTo: 'Dr. Silva',
-    projectId: '1',
-    projectTitle: 'Ação Previdenciária - João Santos',
-    clientId: '1',
-    clientName: 'João Santos',
-    tags: ['INSS', 'Audiência', 'Previdenciário'],
-    estimatedHours: 3,
-    actualHours: 3.5,
-    progress: 100,
-    createdAt: '2024-01-15T08:00:00Z',
-    updatedAt: '2024-01-28T16:45:00Z',
-    completedAt: '2024-01-28T16:45:00Z',
-    notes: 'Audiência realizada com sucesso. Aguardando decisão.',
-    attachments: [],
-    subtasks: [
-      {
-        id: '7',
-        title: 'Preparar documentação',
-        completed: true,
-        createdAt: '2024-01-15T08:00:00Z',
-        completedAt: '2024-01-20T09:30:00Z',
-      },
-      {
-        id: '8',
-        title: 'Comparecer à audiência',
-        completed: true,
-        createdAt: '2024-01-15T08:00:00Z',
-        completedAt: '2024-01-28T16:45:00Z',
-      },
-    ],
-  },
-  {
-    id: '4',
-    title: 'Análise de viabilidade processual',
-    description: 'Estudar caso e avaliar chances de sucesso na ação judicial.',
-    startDate: '2024-01-25T00:00:00Z',
-    endDate: '2024-02-05T00:00:00Z',
-    status: 'on_hold',
-    priority: 'low',
-    assignedTo: 'Ana Paralegal',
-    projectId: '4',
-    projectTitle: 'Ação Trabalhista - Pedro Souza',
-    clientId: '4',
-    clientName: 'Pedro Souza',
-    tags: ['Análise', 'Trabalhista', 'Viabilidade'],
-    estimatedHours: 8,
-    actualHours: 1,
-    progress: 15,
-    createdAt: '2024-01-25T11:20:00Z',
-    updatedAt: '2024-01-26T14:10:00Z',
-    notes: 'Pausado até recebimento de documentos adicionais.',
-    attachments: [],
-    subtasks: [],
-  },
-];
+// Load tasks from API
+const loadTasksFromAPI = async () => {
+  try {
+    const response = await fetch('/api/tasks', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.tasks || [];
+    }
+  } catch (error) {
+    console.warn('Could not load tasks from API:', error);
+  }
+  return [];
+};
 
 interface TasksListViewProps {
   tasks: Task[];
