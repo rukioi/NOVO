@@ -84,10 +84,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Get user account type from localStorage
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const accountType = user.accountType || 'SIMPLES';
+  const rawAccountType = user.accountType || 'SIMPLES';
+
+  // Normalize account type for consistent checking
+  const normalizeAccountType = (type: string) => {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('composite') || lowerType.includes('composta') || type === 'COMPOSTA') {
+      return 'COMPOSTA';
+    }
+    if (lowerType.includes('managerial') || lowerType.includes('gerencial') || type === 'GERENCIAL') {
+      return 'GERENCIAL';
+    }
+    return 'SIMPLES';
+  };
+
+  const accountType = normalizeAccountType(rawAccountType);
+
+  // Debug log to check account type
+  console.log('🔍 Account Type Debug:', {
+    raw: rawAccountType,
+    normalized: accountType,
+    user: user,
+    timestamp: new Date().toISOString()
+  });
 
   // Apply global dialog body freeze fix
   useDialogBodyFix();

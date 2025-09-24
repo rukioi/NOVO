@@ -37,9 +37,23 @@ export class AuthController {
 
       console.log('Registration successful:', { userId: result.user.id, tenantId: result.user.tenantId });
 
+      // Map account types for frontend consistency
+      const mapAccountType = (type: string) => {
+        switch (type) {
+          case 'SIMPLES': return 'Simple Account';
+          case 'COMPOSTA': return 'Composite Account';  
+          case 'GERENCIAL': return 'Managerial Account';
+          default: return type;
+        }
+      };
+
       res.status(201).json({
         message: 'User registered successfully',
-        user: result.user,
+        user: {
+          ...result.user,
+          accountType: result.user.accountType, // Keep original for backend
+          accountTypeDisplay: mapAccountType(result.user.accountType) // For display
+        },
         tokens: result.tokens,
         isNewTenant: result.isNewTenant,
       });
@@ -69,13 +83,24 @@ export class AuthController {
 
       console.log('Login successful:', { userId: user.id, tenantId: user.tenant_id });
 
+      // Map account types for frontend consistency
+      const mapAccountType = (type: string) => {
+        switch (type) {
+          case 'SIMPLES': return 'Simple Account';
+          case 'COMPOSTA': return 'Composite Account';  
+          case 'GERENCIAL': return 'Managerial Account';
+          default: return type;
+        }
+      };
+
       res.json({
         message: 'Login successful',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
-          accountType: user.accountType,
+          accountType: user.accountType, // Keep original for backend
+          accountTypeDisplay: mapAccountType(user.accountType), // For display
           tenantId: user.tenantId,
           tenantName: tenantName,
         },

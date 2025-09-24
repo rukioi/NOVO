@@ -79,7 +79,7 @@ export class TransactionsService {
    */
   async initializeTables(tenantId: string): Promise<void> {
     const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS \${schema}.${this.tableName} (
+      CREATE TABLE IF NOT EXISTS ${this.tableName} (
         id VARCHAR PRIMARY KEY,
         type VARCHAR NOT NULL CHECK (type IN ('income', 'expense')),
         amount DECIMAL(15,2) NOT NULL,
@@ -103,22 +103,22 @@ export class TransactionsService {
         is_active BOOLEAN DEFAULT TRUE
       )
     `;
-    
+
     await tenantDB.executeInTenantSchema(tenantId, createTableQuery);
-    
+
     // Criar índices para performance
     const createIndexes = [
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_type ON \${schema}.${this.tableName}(type)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_category_id ON \${schema}.${this.tableName}(category_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_status ON \${schema}.${this.tableName}(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_date ON \${schema}.${this.tableName}(date)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_project_id ON \${schema}.${this.tableName}(project_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_client_id ON \${schema}.${this.tableName}(client_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_recurring ON \${schema}.${this.tableName}(is_recurring)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_active ON \${schema}.${this.tableName}(is_active)`,
-      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_created_by ON \${schema}.${this.tableName}(created_by)`
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_type ON ${this.tableName}(type)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_category_id ON ${this.tableName}(category_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_status ON ${this.tableName}(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_date ON ${this.tableName}(date)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_project_id ON ${this.tableName}(project_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_client_id ON ${this.tableName}(client_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_recurring ON ${this.tableName}(is_recurring)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_active ON ${this.tableName}(is_active)`,
+      `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_created_by ON ${this.tableName}(created_by)`
     ];
-    
+
     for (const indexQuery of createIndexes) {
       await tenantDB.executeInTenantSchema(tenantId, indexQuery);
     }
@@ -139,122 +139,122 @@ export class TransactionsService {
     };
   }> {
     await this.initializeTables(tenantId);
-    
+
     const page = filters.page || 1;
     const limit = filters.limit || 50;
     const offset = (page - 1) * limit;
-    
+
     let whereConditions = ['is_active = TRUE'];
     let queryParams: any[] = [];
     let paramIndex = 1;
-    
+
     // Filtro por tipo (income/expense)
     if (filters.type) {
       whereConditions.push(`type = $${paramIndex}`);
       queryParams.push(filters.type);
       paramIndex++;
     }
-    
+
     // Filtro por status
     if (filters.status) {
       whereConditions.push(`status = $${paramIndex}`);
       queryParams.push(filters.status);
       paramIndex++;
     }
-    
+
     // Filtro por categoria
     if (filters.categoryId) {
       whereConditions.push(`category_id = $${paramIndex}`);
       queryParams.push(filters.categoryId);
       paramIndex++;
     }
-    
+
     // Filtro por busca (descrição ou categoria)
     if (filters.search) {
       whereConditions.push(`(description ILIKE $${paramIndex} OR category ILIKE $${paramIndex})`);
       queryParams.push(`%${filters.search}%`);
       paramIndex++;
     }
-    
+
     // Filtro por projeto
     if (filters.projectId) {
       whereConditions.push(`project_id = $${paramIndex}`);
       queryParams.push(filters.projectId);
       paramIndex++;
     }
-    
+
     // Filtro por cliente
     if (filters.clientId) {
       whereConditions.push(`client_id = $${paramIndex}`);
       queryParams.push(filters.clientId);
       paramIndex++;
     }
-    
+
     // Filtro por tags
     if (filters.tags && filters.tags.length > 0) {
       whereConditions.push(`tags ?| $${paramIndex}`);
       queryParams.push(filters.tags);
       paramIndex++;
     }
-    
+
     // Filtro por data (intervalo)
     if (filters.dateFrom) {
       whereConditions.push(`date >= $${paramIndex}`);
       queryParams.push(filters.dateFrom);
       paramIndex++;
     }
-    
+
     if (filters.dateTo) {
       whereConditions.push(`date <= $${paramIndex}`);
       queryParams.push(filters.dateTo);
       paramIndex++;
     }
-    
+
     // Filtro por método de pagamento
     if (filters.paymentMethod) {
       whereConditions.push(`payment_method = $${paramIndex}`);
       queryParams.push(filters.paymentMethod);
       paramIndex++;
     }
-    
+
     // Filtro por transações recorrentes
     if (filters.isRecurring !== undefined) {
       whereConditions.push(`is_recurring = $${paramIndex}`);
       queryParams.push(filters.isRecurring);
       paramIndex++;
     }
-    
+
     const whereClause = whereConditions.length > 0 
       ? `WHERE ${whereConditions.join(' AND ')}`
       : '';
-    
+
     // Query para buscar transações
     const transactionsQuery = `
       SELECT 
         id, type, amount, category_id, category, description, date, payment_method,
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by, created_at, updated_at, is_active
-      FROM \${schema}.${this.tableName}
+      FROM ${this.tableName}
       ${whereClause}
       ORDER BY date DESC, created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
-    
+
     // Query para contar total
     const countQuery = `
       SELECT COUNT(*) as total
-      FROM \${schema}.${this.tableName}
+      FROM ${this.tableName}
       ${whereClause}
     `;
-    
+
     const [transactions, countResult] = await Promise.all([
       tenantDB.executeInTenantSchema<Transaction>(tenantId, transactionsQuery, [...queryParams, limit, offset]),
       tenantDB.executeInTenantSchema<{total: string}>(tenantId, countQuery, queryParams)
     ]);
-    
+
     const total = parseInt(countResult[0]?.total || '0');
     const totalPages = Math.ceil(total / limit);
-    
+
     return {
       transactions,
       pagination: {
@@ -273,16 +273,16 @@ export class TransactionsService {
    */
   async getTransactionById(tenantId: string, transactionId: string): Promise<Transaction | null> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
       SELECT 
         id, type, amount, category_id, category, description, date, payment_method,
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by, created_at, updated_at, is_active
-      FROM \${schema}.${this.tableName}
+      FROM ${this.tableName}
       WHERE id = $1 AND is_active = TRUE
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema<Transaction>(tenantId, query, [transactionId]);
     return result[0] || null;
   }
@@ -292,12 +292,12 @@ export class TransactionsService {
    */
   async createTransaction(tenantId: string, transactionData: CreateTransactionData, createdBy: string): Promise<Transaction> {
     await this.initializeTables(tenantId);
-    
+
     // Gerar ID único seguindo o mesmo padrão dos outros serviços
     const transactionId = `transaction_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     const query = `
-      INSERT INTO \${schema}.${this.tableName} (
+      INSERT INTO ${this.tableName} (
         id, type, amount, category_id, category, description, date, payment_method,
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by
@@ -309,7 +309,7 @@ export class TransactionsService {
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by, created_at, updated_at, is_active
     `;
-    
+
     const params = [
       transactionId,
       transactionData.type,
@@ -330,7 +330,7 @@ export class TransactionsService {
       transactionData.recurringFrequency || null,
       createdBy
     ];
-    
+
     const result = await tenantDB.executeInTenantSchema<Transaction>(tenantId, query, params);
     return result[0];
   }
@@ -340,11 +340,11 @@ export class TransactionsService {
    */
   async updateTransaction(tenantId: string, transactionId: string, updateData: UpdateTransactionData): Promise<Transaction | null> {
     await this.initializeTables(tenantId);
-    
+
     const updateFields: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
-    
+
     // Mapeamento dos campos para atualização
     const fieldMappings = {
       type: 'type',
@@ -364,7 +364,7 @@ export class TransactionsService {
       isRecurring: 'is_recurring',
       recurringFrequency: 'recurring_frequency'
     };
-    
+
     for (const [key, dbField] of Object.entries(fieldMappings)) {
       if (updateData.hasOwnProperty(key)) {
         const value = (updateData as any)[key];
@@ -378,16 +378,16 @@ export class TransactionsService {
         paramIndex++;
       }
     }
-    
+
     if (updateFields.length === 0) {
       throw new Error('No fields to update');
     }
-    
+
     // Adicionar updated_at
     updateFields.push(`updated_at = NOW()`);
-    
+
     const query = `
-      UPDATE \${schema}.${this.tableName}
+      UPDATE ${this.tableName}
       SET ${updateFields.join(', ')}
       WHERE id = $${paramIndex} AND is_active = TRUE
       RETURNING 
@@ -395,9 +395,9 @@ export class TransactionsService {
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by, created_at, updated_at, is_active
     `;
-    
+
     params.push(transactionId);
-    
+
     const result = await tenantDB.executeInTenantSchema<Transaction>(tenantId, query, params);
     return result[0] || null;
   }
@@ -407,13 +407,13 @@ export class TransactionsService {
    */
   async deleteTransaction(tenantId: string, transactionId: string): Promise<boolean> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
-      UPDATE \${schema}.${this.tableName}
+      UPDATE ${this.tableName}
       SET is_active = FALSE, updated_at = NOW()
       WHERE id = $1 AND is_active = TRUE
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema(tenantId, query, [transactionId]);
     return result.length > 0;
   }
@@ -433,23 +433,23 @@ export class TransactionsService {
     recurringTransactions: number;
   }> {
     await this.initializeTables(tenantId);
-    
+
     let whereClause = 'WHERE is_active = TRUE';
     const params: any[] = [];
     let paramIndex = 1;
-    
+
     if (dateFrom) {
       whereClause += ` AND date >= $${paramIndex}`;
       params.push(dateFrom);
       paramIndex++;
     }
-    
+
     if (dateTo) {
       whereClause += ` AND date <= $${paramIndex}`;
       params.push(dateTo);
       paramIndex++;
     }
-    
+
     const query = `
       SELECT 
         COALESCE(SUM(amount) FILTER (WHERE type = 'income'), 0) as total_income,
@@ -460,16 +460,16 @@ export class TransactionsService {
         COALESCE(SUM(amount) FILTER (WHERE type = 'income' AND date >= DATE_TRUNC('month', NOW())), 0) as this_month_income,
         COALESCE(SUM(amount) FILTER (WHERE type = 'expense' AND date >= DATE_TRUNC('month', NOW())), 0) as this_month_expense,
         COUNT(*) FILTER (WHERE is_recurring = true) as recurring_transactions
-      FROM \${schema}.${this.tableName}
+      FROM ${this.tableName}
       ${whereClause}
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema<any>(tenantId, query, params);
     const stats = result[0];
-    
+
     const totalIncome = parseFloat(stats.total_income || '0');
     const totalExpense = parseFloat(stats.total_expense || '0');
-    
+
     return {
       totalIncome,
       totalExpense,
@@ -486,58 +486,107 @@ export class TransactionsService {
   /**
    * Busca transações por categoria (para relatórios)
    */
-  async getTransactionsByCategory(tenantId: string, type?: 'income' | 'expense', dateFrom?: string, dateTo?: string): Promise<{
+  async getTransactionsByCategory(tenantId: string, type?: 'income' | 'expense', dateFrom?: string): Promise<{
     categoryId: string;
     category: string;
     amount: number;
     count: number;
   }[]> {
-    await this.initializeTables(tenantId);
-    
-    let whereConditions = ['is_active = TRUE'];
-    const params: any[] = [];
-    let paramIndex = 1;
-    
-    if (type) {
-      whereConditions.push(`type = $${paramIndex}`);
-      params.push(type);
-      paramIndex++;
+    try {
+      await this.initializeTables(tenantId);
+
+      let query = `
+        SELECT 
+          category,
+          type,
+          SUM(amount) as total,
+          COUNT(*) as count
+        FROM ${this.tableName} 
+        WHERE is_active = TRUE
+      `;
+
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (type) {
+        query += ` AND type = $${paramIndex}`;
+        params.push(type);
+        paramIndex++;
+      }
+
+      if (dateFrom) {
+        query += ` AND created_at >= $${paramIndex}`;
+        params.push(dateFrom);
+        paramIndex++;
+      }
+
+      query += ` GROUP BY category, type ORDER BY total DESC`;
+
+      const result = await tenantDB.executeInTenantSchema(tenantId, query, params);
+
+      return result.map((row: any) => ({
+        category: row.category,
+        type: row.type,
+        total: parseFloat(row.total || '0'),
+        count: parseInt(row.count || '0')
+      }));
+    } catch (error) {
+      console.error('Error getting transactions by category:', error);
+      return [];
     }
-    
-    if (dateFrom) {
-      whereConditions.push(`date >= $${paramIndex}`);
-      params.push(dateFrom);
-      paramIndex++;
+  }
+
+  /**
+   * Get transaction statistics for dashboard
+   */
+  async getTransactionsStats(tenantId: string) {
+    try {
+      await this.initializeTables(tenantId);
+
+      const currentMonth = new Date();
+      currentMonth.setDate(1);
+      currentMonth.setHours(0, 0, 0, 0);
+
+      const query = `
+        SELECT 
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
+          SUM(CASE WHEN type = 'income' AND created_at >= $1 THEN amount ELSE 0 END) as this_month_income,
+          SUM(CASE WHEN type = 'expense' AND created_at >= $1 THEN amount ELSE 0 END) as this_month_expenses,
+          COUNT(*) as total_transactions
+        FROM ${this.tableName} 
+        WHERE is_active = TRUE
+      `;
+
+      const result = await tenantDB.executeInTenantSchema(tenantId, query, [currentMonth.toISOString()]);
+
+      if (result.length > 0) {
+        return {
+          totalIncome: parseFloat(result[0].total_income || '0'),
+          totalExpenses: parseFloat(result[0].total_expenses || '0'),
+          thisMonthIncome: parseFloat(result[0].this_month_income || '0'),
+          thisMonthExpenses: parseFloat(result[0].this_month_expenses || '0'),
+          totalTransactions: parseInt(result[0].total_transactions || '0')
+        };
+      }
+
+      return {
+        totalIncome: 0,
+        totalExpenses: 0,
+        thisMonthIncome: 0,
+        thisMonthExpenses: 0,
+        totalTransactions: 0
+      };
+    } catch (error) {
+      console.error('Error getting transaction stats:', error);
+      return {
+        totalIncome: 0,
+        totalExpenses: 0,
+        thisMonthIncome: 0,
+        thisMonthExpenses: 0,
+        totalTransactions: 0
+      };
     }
-    
-    if (dateTo) {
-      whereConditions.push(`date <= $${paramIndex}`);
-      params.push(dateTo);
-      paramIndex++;
-    }
-    
-    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
-    
-    const query = `
-      SELECT 
-        category_id,
-        category,
-        SUM(amount) as amount,
-        COUNT(*) as count
-      FROM \${schema}.${this.tableName}
-      ${whereClause}
-      GROUP BY category_id, category
-      ORDER BY amount DESC
-    `;
-    
-    const result = await tenantDB.executeInTenantSchema<any>(tenantId, query, params);
-    
-    return result.map(row => ({
-      categoryId: row.category_id,
-      category: row.category,
-      amount: parseFloat(row.amount || '0'),
-      count: parseInt(row.count || '0')
-    }));
   }
 
   /**
@@ -545,17 +594,17 @@ export class TransactionsService {
    */
   async getRecurringTransactionsDue(tenantId: string): Promise<Transaction[]> {
     await this.initializeTables(tenantId);
-    
+
     const query = `
       SELECT 
         id, type, amount, category_id, category, description, date, payment_method,
         status, project_id, project_title, client_id, client_name, tags, notes,
         is_recurring, recurring_frequency, created_by, created_at, updated_at, is_active
-      FROM \${schema}.${this.tableName}
+      FROM ${this.tableName}
       WHERE is_active = TRUE AND is_recurring = TRUE
       ORDER BY date ASC
     `;
-    
+
     const result = await tenantDB.executeInTenantSchema<Transaction>(tenantId, query);
     return result;
   }

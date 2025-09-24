@@ -277,6 +277,18 @@ export class AuthService {
       isNewTenant = true;
     }
 
+    // Initialize tenant schema if it's a new tenant
+    if (isNewTenant) {
+      const { tenantService } = await import('./tenantService');
+      try {
+        await tenantService.initializeTenantSchema(tenant.id, tenant.schemaName);
+        console.log('Tenant schema initialized successfully for:', tenant.schemaName);
+      } catch (schemaError) {
+        console.error('Error initializing tenant schema:', schemaError);
+        // Continue with user creation even if schema init fails
+      }
+    }
+
     // Create user
     const userData = {
       email,

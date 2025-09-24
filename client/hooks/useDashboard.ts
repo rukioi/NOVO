@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
 
@@ -6,11 +5,11 @@ import { apiService } from '../services/apiService';
 function transformCashFlowToMonthly(cashFlowData: any[]) {
   // Group daily data by month and sum values
   const monthlyData = new Map();
-  
+
   cashFlowData.forEach(item => {
     const month = new Date(item.day).toLocaleDateString('pt-BR', { month: 'short' });
     const monthKey = month.charAt(0).toUpperCase() + month.slice(1).slice(0, 3);
-    
+
     if (!monthlyData.has(monthKey)) {
       monthlyData.set(monthKey, { 
         month: monthKey, 
@@ -19,13 +18,13 @@ function transformCashFlowToMonthly(cashFlowData: any[]) {
         saldo: 0 
       });
     }
-    
+
     const existing = monthlyData.get(monthKey);
     existing.receitas += item.income;
     existing.despesas += item.expense;
     existing.saldo += item.net;
   });
-  
+
   return Array.from(monthlyData.values());
 }
 
@@ -38,7 +37,7 @@ function transformCategoriesToRevenue(categories: any[]) {
       amount: cat.total,
       color: getColorForIndex(index)
     }));
-  
+
   return revenueCategories;
 }
 
@@ -51,7 +50,7 @@ function transformCategoriesToExpenses(categories: any[]) {
       amount: cat.total,
       color: getColorForIndex(index)
     }));
-  
+
   return expenseCategories;
 }
 
@@ -137,7 +136,7 @@ export function useDashboard() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard metrics';
       setError(errorMessage);
       console.error('Dashboard metrics error:', err);
-      
+
       // Set empty metrics instead of throwing
       setMetrics({
         financial: {
@@ -170,7 +169,7 @@ export function useDashboard() {
   const loadChartData = async (period: string = '30d') => {
     try {
       const response = await apiService.getChartData(period);
-      
+
       // Transform backend data to frontend format
       const transformedData = {
         monthlyFinancialData: response.financial?.cashFlow ? 
@@ -180,7 +179,7 @@ export function useDashboard() {
         expensesByCategory: response.financial?.categories ? 
           transformCategoriesToExpenses(response.financial.categories) : []
       };
-      
+
       setChartData(transformedData);
       return transformedData;
     } catch (err) {

@@ -236,31 +236,31 @@ export function Dashboard() {
             <MetricCard
               title="💰 RECEITAS"
               value={metrics.financial.revenue}
-              change={15} // Calculate from previous period
-              trend="up"
+              change={metrics.financial.thisMonth.revenue > 0 ? 15 : 0}
+              trend={metrics.financial.thisMonth.revenue > 0 ? "up" : "down"}
               icon={DollarSign}
               className="metric-revenue"
             />
             <MetricCard
               title="📉 DESPESAS"
               value={metrics.financial.expenses}
-              change={-8} // Calculate from previous period
-              trend="down"
+              change={metrics.financial.thisMonth.expenses > 0 ? -8 : 0}
+              trend={metrics.financial.thisMonth.expenses > 0 ? "down" : "up"}
               icon={TrendingDown}
               className="metric-expense"
             />
             <MetricCard
               title="🏦 SALDO"
               value={metrics.financial.balance}
-              change={23} // Calculate from previous period
+              change={metrics.financial.balance > 0 ? 23 : -15}
               trend={metrics.financial.balance >= 0 ? 'up' : 'down'}
               icon={TrendingUp}
-              className="metric-balance-positive"
+              className={metrics.financial.balance >= 0 ? "metric-balance-positive" : "metric-balance-negative"}
             />
             <MetricCard
               title="👥 CLIENTES"
               value={metrics.clients.total}
-              change={metrics.clients.thisMonth > 0 ? 12 : 0}
+              change={metrics.clients.thisMonth > 0 ? Math.round((metrics.clients.thisMonth / metrics.clients.total) * 100) : 0}
               trend="up"
               icon={Users}
               format="number"

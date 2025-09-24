@@ -92,13 +92,144 @@ export class DashboardService {
         invoices: { total: 0, paid: 0, pending: 0, overdue: 0 }
       };
 
-      let publicationsStats;
-
       // Métricas financeiras apenas para COMPOSTA e GERENCIAL
       if (accountType === 'COMPOSTA' || accountType === 'GERENCIAL') {
-        const [transactionsStats, invoicesStats] = await Promise.all([
-          transactionsService.getTransactionsStats(tenantId),
-          invoicesService.getInvoicesStats(tenantId)
+        try {
+          const [transactionsStats, invoicesStats] = await Promise.all([
+            transactionsService.getTransactionsStats(tenantId),
+            invoicesService.getInvoicesStats(tenantId)
+          ]);
+
+          financialStats = {
+            revenue: transactionsStats.totalIncome || 0,
+            expenses: transactionsStats.totalExpenses || 0,
+            balance: (transactionsStats.totalIncome || 0) - (transactionsStats.totalExpenses || 0),
+            thisMonth: {
+              revenue: transactionsStats.thisMonthIncome || 0,
+              expenses: transactionsStats.thisMonthExpenses || 0
+            },
+            invoices: {
+              total: invoicesStats.total || 0,
+              paid: invoicesStats.paid || 0,
+              pending: invoicesStats.pending || 0,
+              overdue: invoicesStats.overdue || 0
+            }
+          };
+        } catch (financialError) {
+          console.warn('Error loading financial stats:', financialError);
+          // Keep default zeros for financial stats
+        }
+      }
+
+      return {
+        financial: financialStats,
+        clients: {
+          total: clientsStats.total || 0,
+          active: clientsStats.active || 0,
+          inactive: clientsStats.inactive || 0,
+          thisMonth: clientsStats.thisMonth || 0
+        },
+        projects: {
+          total: projectsStats.total || 0,
+          contacted: projectsStats.contacted || 0,
+          proposal: projectsStats.proposal || 0,
+          won: projectsStats.won || 0,
+          lost: projectsStats.lost || 0,
+          thisMonth: projectsStats.thisMonth || 0
+        },
+        tasks: {
+          total: tasksStats.total || 0,
+          completed: tasksStats.completed || 0,
+          inProgress: tasksStats.inProgress || 0,
+          notStarted: tasksStats.notStarted || 0,
+          urgent: tasksStats.urgent || 0
+        }
+      };
+    } catch (error) {
+      console.error('Error getting dashboard metrics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtém atividades recentes
+   */
+  async getRecentActivity(tenantId: string, limit: number = 10): Promise<RecentActivity[]> {
+    try {
+      const activities: RecentActivity[] = [];
+
+      // Get recent clients, projects, tasks, and transactions
+      const [clients, projects, tasks, transactions] = await Promise.all([
+        clientsService.getClients(tenantId, 1, 5).catch(() => ({ clients: [] })),
+        projectsService.getProjects(tenantId, 1, 5).catch(() => ({ projects: [] })),
+        tasksService.getTasks(tenantId, 1, 5).catch(() => ({ tasks: [] })),
+        transactionsService.getTransactions(tenantId, 1, 5).catch(() => ({ transactions: [] }))
+      ]);
+
+      // Convert clients to activities
+      if (clients.clients) {
+        clients.clients.forEach((client: any) => {
+          activities.push({
+            id: client.id,
+            type: 'client',
+            title: `Cliente: ${client.name}`,
+            description: client.email || 'Novo cliente adicionado',
+            date: client.created_at || client.createdAt || new Date().toISOString(),
+            status: client.status || 'active'
+          });
+        });
+      }
+
+      // Convert projects to activities
+      if (projects.projects) {
+        projects.projects.forEach((project: any) => {
+          activities.push({
+            id: project.id,
+            type: 'project',
+            title: `Projeto: ${project.title || project.name}`,
+            description: project.description || 'Novo projeto criado',
+            date: project.created_at || project.createdAt || new Date().toISOString(),
+            status: project.status || 'active'
+          });
+        });
+      }
+
+      // Convert tasks to activities
+      if (tasks.tasks) {
+        tasks.tasks.forEach((task: any) => {
+          activities.push({
+            id: task.id,
+            type: 'task',
+            title: `Tarefa: ${task.title}`,
+            description: task.description || 'Nova tarefa criada',
+            date: task.created_at || task.createdAt || new Date().toISOString(),
+            status: task.status || 'pending'
+          });
+        });
+      }
+
+      // Convert transactions to activities
+      if (transactions.transactions) {
+        transactions.transactions.forEach((transaction: any) => {
+          activities.push({
+            id: transaction.id,
+            type: 'transaction',
+            title: `${transaction.type === 'income' ? 'Receita' : 'Despesa'}: ${transaction.description}`,
+            description: `R$ ${transaction.amount.toFixed(2)}`,
+            date: transaction.created_at || transaction.createdAt || new Date().toISOString(),
+            amount: transaction.amount
+          });
+        });
+      }
+
+      // Ordenar por data e limitar
+      return activities
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, limit);
+    } catch (error) {
+      console.error('Error getting recent activity:', error);
+      throw error;
+    })
         ]);
 
         financialStats = {

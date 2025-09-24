@@ -146,7 +146,7 @@ export class AdminController {
           };
 
           // Calculate user count for this tenant
-          const tenantUsers = allUsers.rows.filter(user => user.tenantId === tenant.id);
+          const tenantUsers = allUsers.rows.filter(user => user.tenantId === tenant.id && user.isActive);
           const userCount = tenantUsers.length;
 
           try {
