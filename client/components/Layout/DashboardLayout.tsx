@@ -84,6 +84,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Get user account type from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const accountType = user.accountType || 'SIMPLES';
 
   // Apply global dialog body freeze fix
   useDialogBodyFix();
@@ -151,7 +155,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => {
+          {navigation.filter((item) => {
+            // Apply access restrictions based on account type
+            if (item.href === '/fluxo-caixa' || item.href === '/recebiveis') {
+              // Only COMPOSTA and GERENCIAL can access financial modules
+              return accountType === 'COMPOSTA' || accountType === 'GERENCIAL';
+            }
+            if (item.href === '/configuracoes') {
+              // Only GERENCIAL can access settings
+              return accountType === 'GERENCIAL';
+            }
+            // All other routes are accessible to all account types
+            return true;
+          }).map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link

@@ -128,6 +128,9 @@ export class AdminController {
   async getTenants(req: Request, res: Response) {
     try {
       const tenants = await database.getAllTenants();
+      
+      // Get all users to calculate tenant user counts
+      const allUsers = await database.getAllUsers();
 
       // Buscar estatísticas de cada tenant
       const tenantsWithStats = await Promise.all(
@@ -139,6 +142,10 @@ export class AdminController {
             transactions: 0,
             invoices: 0,
           };
+
+          // Calculate user count for this tenant
+          const tenantUsers = allUsers.rows.filter(user => user.tenantId === tenant.id);
+          const userCount = tenantUsers.length;
 
           try {
             // First check if schema exists before querying
@@ -189,7 +196,7 @@ export class AdminController {
             planType: tenant.planType,
             isActive: tenant.isActive,
             maxUsers: tenant.maxUsers,
-            userCount: 0, // TODO: implementar contagem real de usuários
+            userCount: userCount,
             createdAt: tenant.createdAt,
             stats,
           };

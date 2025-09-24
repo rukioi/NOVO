@@ -281,6 +281,10 @@ export class AuthService {
 
     const user = await database.createUser(userData);
 
+    // Update tenant user count
+    console.log('Updating tenant user count for tenant:', tenant.id);
+    await this.updateTenantUserCount(tenant.id);
+
     // Update registration key usage
     const currentUsedLogs = registrationKey.usedLogs;
     const usedLogsArray = currentUsedLogs ? (typeof currentUsedLogs === 'string' ? JSON.parse(currentUsedLogs) : currentUsedLogs) : [];
@@ -303,6 +307,25 @@ export class AuthService {
     const { password: _, ...userWithoutPassword } = user;
     
     return { user: userWithoutPassword, tokens, isNewTenant };
+  }
+
+  // Helper method to update tenant user count
+  private async updateTenantUserCount(tenantId: string) {
+    try {
+      // Get current user count for this tenant
+      const allUsers = await database.getAllUsers();
+      const tenantUsers = allUsers.rows.filter(user => user.tenantId === tenantId);
+      const userCount = tenantUsers.length;
+      
+      console.log(`Tenant ${tenantId} now has ${userCount} users`);
+      
+      // We don't need to update anything in the database as the count is calculated dynamically
+      // This is just for logging purposes
+      return userCount;
+    } catch (error) {
+      console.error('Error updating tenant user count:', error);
+      return 0;
+    }
   }
 }
 

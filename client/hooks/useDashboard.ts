@@ -2,6 +2,67 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
 
+// Helper functions to transform backend data to frontend format
+function transformCashFlowToMonthly(cashFlowData: any[]) {
+  // Group daily data by month and sum values
+  const monthlyData = new Map();
+  
+  cashFlowData.forEach(item => {
+    const month = new Date(item.day).toLocaleDateString('pt-BR', { month: 'short' });
+    const monthKey = month.charAt(0).toUpperCase() + month.slice(1).slice(0, 3);
+    
+    if (!monthlyData.has(monthKey)) {
+      monthlyData.set(monthKey, { 
+        month: monthKey, 
+        receitas: 0, 
+        despesas: 0, 
+        saldo: 0 
+      });
+    }
+    
+    const existing = monthlyData.get(monthKey);
+    existing.receitas += item.income;
+    existing.despesas += item.expense;
+    existing.saldo += item.net;
+  });
+  
+  return Array.from(monthlyData.values());
+}
+
+function transformCategoriesToRevenue(categories: any[]) {
+  const revenueCategories = categories
+    .filter(cat => cat.type === 'income')
+    .map((cat, index) => ({
+      name: cat.category || 'Outros',
+      value: Math.round((cat.total / categories.reduce((sum, c) => sum + (c.type === 'income' ? c.total : 0), 0)) * 100),
+      amount: cat.total,
+      color: getColorForIndex(index)
+    }));
+  
+  return revenueCategories;
+}
+
+function transformCategoriesToExpenses(categories: any[]) {
+  const expenseCategories = categories
+    .filter(cat => cat.type === 'expense')
+    .map((cat, index) => ({
+      name: cat.category || 'Outros',
+      value: Math.round((cat.total / categories.reduce((sum, c) => sum + (c.type === 'expense' ? c.total : 0), 0)) * 100),
+      amount: cat.total,
+      color: getColorForIndex(index)
+    }));
+  
+  return expenseCategories;
+}
+
+function getColorForIndex(index: number) {
+  const colors = [
+    "#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444", 
+    "#06B6D4", "#EC4899", "#84CC16", "#F97316", "#6B7280"
+  ];
+  return colors[index % colors.length];
+}
+
 interface DashboardMetrics {
   financial: {
     revenue: number;
@@ -109,11 +170,26 @@ export function useDashboard() {
   const loadChartData = async (period: string = '30d') => {
     try {
       const response = await apiService.getChartData(period);
-      setChartData(response);
-      return response;
+      
+      // Transform backend data to frontend format
+      const transformedData = {
+        monthlyFinancialData: response.financial?.cashFlow ? 
+          transformCashFlowToMonthly(response.financial.cashFlow) : [],
+        revenueByCategory: response.financial?.categories ? 
+          transformCategoriesToRevenue(response.financial.categories) : [],
+        expensesByCategory: response.financial?.categories ? 
+          transformCategoriesToExpenses(response.financial.categories) : []
+      };
+      
+      setChartData(transformedData);
+      return transformedData;
     } catch (err) {
       console.error('Chart data error:', err);
-      setChartData({ revenue: [], expenses: [] });
+      setChartData({ 
+        monthlyFinancialData: [], 
+        revenueByCategory: [], 
+        expensesByCategory: [] 
+      });
     }
   };
 

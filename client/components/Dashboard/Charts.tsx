@@ -65,41 +65,11 @@ const CustomYAxis = ({
 );
 
 // Mock data for charts
-const monthlyFinancialData = [
-  { month: "Jan", receitas: 45000, despesas: 28000, saldo: 17000 },
-  { month: "Fev", receitas: 52000, despesas: 32000, saldo: 20000 },
-  { month: "Mar", receitas: 48000, despesas: 29000, saldo: 19000 },
-  { month: "Abr", receitas: 61000, despesas: 35000, saldo: 26000 },
-  { month: "Mai", receitas: 55000, despesas: 31000, saldo: 24000 },
-  { month: "Jun", receitas: 67000, despesas: 38000, saldo: 29000 },
-];
+// This data will now come from props passed by the parent component
 
-const revenueByCategory = [
-  {
-    name: "Honorários Advocatícios",
-    value: 65,
-    amount: 42250,
-    color: "#10B981",
-  },
-  {
-    name: "Consultorias Jurídicas",
-    value: 20,
-    amount: 13000,
-    color: "#3B82F6",
-  },
-  { name: "Acordos e Mediações", value: 10, amount: 6500, color: "#8B5CF6" },
-  { name: "Custas Reembolsadas", value: 3, amount: 1950, color: "#F59E0B" },
-  { name: "Outros Serviços", value: 2, amount: 1300, color: "#6B7280" },
-];
+// This data will now come from props passed by the parent component
 
-const expensesByCategory = [
-  { name: "Salários", value: 45, amount: 14400, color: "#EF4444" },
-  { name: "Aluguel", value: 25, amount: 8000, color: "#F97316" },
-  { name: "Contas Básicas", value: 10, amount: 3200, color: "#84CC16" },
-  { name: "Material Escritório", value: 8, amount: 2560, color: "#06B6D4" },
-  { name: "Marketing", value: 7, amount: 2240, color: "#EC4899" },
-  { name: "Outros", value: 5, amount: 1600, color: "#6B7280" },
-];
+// This data will now come from props passed by the parent component
 
 const clientsByStatus = [
   { status: "Em Contato", count: 18, color: "#3B82F6" },
@@ -117,11 +87,37 @@ const clientsGrowth = [
   { month: "Jun", novos: 11, ativos: 156 },
 ];
 
-interface ChartsProps {
-  className?: string;
+interface ChartsData {
+  monthlyFinancialData?: Array<{
+    month: string;
+    receitas: number;
+    despesas: number;
+    saldo: number;
+  }>;
+  revenueByCategory?: Array<{
+    name: string;
+    value: number;
+    amount: number;
+    color: string;
+  }>;
+  expensesByCategory?: Array<{
+    name: string;
+    value: number;
+    amount: number;
+    color: string;
+  }>;
 }
 
-export function DashboardCharts({ className }: ChartsProps) {
+interface ChartsProps {
+  className?: string;
+  data?: ChartsData;
+}
+
+export function DashboardCharts({ className, data }: ChartsProps) {
+  // Use real data if provided, otherwise use empty arrays
+  const monthlyFinancialData = data?.monthlyFinancialData || [];
+  const revenueByCategory = data?.revenueByCategory || [];
+  const expensesByCategory = data?.expensesByCategory || [];
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",

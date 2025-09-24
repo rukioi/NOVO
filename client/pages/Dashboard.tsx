@@ -276,7 +276,13 @@ export function Dashboard() {
         )}
 
         {/* Charts Section */}
-        <DashboardCharts />
+        <DashboardCharts 
+          data={{
+            monthlyFinancialData: chartData?.monthlyFinancialData || [],
+            revenueByCategory: chartData?.revenueByCategory || [],
+            expensesByCategory: chartData?.expensesByCategory || []
+          }}
+        />
 
         {/* Activity Sections */}
         <div className="grid gap-4 md:grid-cols-3">
