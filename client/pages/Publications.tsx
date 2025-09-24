@@ -167,6 +167,25 @@ export function Publications() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [publications, setPublications] = useState<Publication[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Load publications from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingData(true);
+      try {
+        const publicationsData = await loadPublicationsFromAPI();
+        setPublications(publicationsData);
+      } catch (error) {
+        console.error('Error loading publications:', error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Estados para consulta de projetos
   const [oabNumber, setOabNumber] = useState("");
@@ -253,7 +272,7 @@ export function Publications() {
     }
   };
 
-  const filteredPublications = mockPublications.filter((pub) => {
+  const filteredPublications = publications.filter((pub) => {
     const matchesSearch =
       pub.processo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pub.nomePesquisado.toLowerCase().includes(searchTerm.toLowerCase()) ||

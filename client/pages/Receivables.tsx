@@ -98,24 +98,32 @@ const mockDashboard: DashboardRecebiveis = {
   clientesAtivos: 84,
 };
 
-// Load receivables data from API
-const loadReceivablesFromAPI = async () => {
-  try {
-    const response = await fetch('/api/recebiveis/faturas', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.faturas || [];
-    }
-  } catch (error) {
-    console.warn('Could not load receivables from API:', error);
-  }
-  return [];
-};
+const mockInvoices: Invoice[] = [
+  // ÚNICA FATURA VENCIDA (conforme solicitado)
+  {
+    id: "1",
+    clienteId: "client1",
+    numeroFatura: "REC-2025-001",
+    valor: 5500,
+    descricao: "Honorários Advocatícios - Dezembro/2024",
+    servicoPrestado: "Consultoria Jurídica Especializada",
+    dataEmissao: new Date("2024-12-01"),
+    dataVencimento: new Date("2024-12-31"),
+    status: "vencida",
+    tentativasCobranca: 3,
+    stripeInvoiceId: "in_stripe123",
+    linkPagamento: "https://checkout.stripe.com/xyz",
+    recorrente: true,
+    intervaloDias: 30,
+    proximaFaturaData: new Date("2025-01-31"),
+    criadoPor: "Dr. Silva",
+    criadoEm: new Date("2024-12-01"),
+    atualizadoEm: new Date("2025-01-05"),
+    urgencia: "alta",
+    ultimaNotificacao: new Date("2025-01-03"),
+  },
+  // FATURAS PRÓXIMAS AO VENCIMENTO (3 dias ou menos)
+  {
     id: "2",
     clienteId: "client2",
     numeroFatura: "REC-2025-015",
@@ -330,8 +338,26 @@ export function Receivables() {
   const [showClientViewDialog, setShowClientViewDialog] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [viewingClient, setViewingClient] = useState<any>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load receivables data from API on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const invoicesData = await loadReceivablesFromAPI();
+        setInvoices(invoicesData);
+      } catch (error) {
+        console.error('Error loading receivables data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   /**
    * FUNÇÃO PARA DETECÇÃO DE VENCIMENTOS (3 DIAS)

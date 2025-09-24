@@ -34,7 +34,7 @@ function AdminRoutes() {
 
 export function AdminApp() {
   return (
-    <div className="dark">
+    <div className="admin-panel">
       <AdminAuthProvider>
         <AdminRoutes />
       </AdminAuthProvider>
