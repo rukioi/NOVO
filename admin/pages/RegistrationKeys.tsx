@@ -51,6 +51,7 @@ export function AdminRegistrationKeys() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isLoadingKeys, setIsLoadingKeys] = useState(true);
 
   useEffect(() => {
     loadKeys();
@@ -59,11 +60,25 @@ export function AdminRegistrationKeys() {
   const loadKeys = async () => {
     try {
       setError(null);
+      setIsLoadingKeys(true);
+      
       const data = await getRegistrationKeys();
-      setKeys(data);
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setKeys(data);
+      } else if (data && Array.isArray(data.keys)) {
+        setKeys(data.keys);
+      } else {
+        console.warn('Unexpected data format:', data);
+        setKeys([]);
+      }
     } catch (err) {
       console.error('Failed to load keys:', err);
       setError(err instanceof Error ? err.message : 'Failed to load registration keys');
+      setKeys([]);
+    } finally {
+      setIsLoadingKeys(false);
     }
   };
 
@@ -212,7 +227,12 @@ export function AdminRegistrationKeys() {
             <CardTitle>Registration Keys</CardTitle>
           </CardHeader>
           <CardContent>
-            {keys.length === 0 ? (
+            {isLoadingKeys ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                <p className="text-gray-500">Loading registration keys...</p>
+              </div>
+            ) : keys.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Key className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No registration keys found</p>

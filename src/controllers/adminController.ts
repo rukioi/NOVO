@@ -104,6 +104,12 @@ export class AdminController {
     try {
       const { id } = req.params;
 
+      if (!id) {
+        return res.status(400).json({
+          error: 'Registration key ID is required',
+        });
+      }
+
       const { registrationKeyService } = await import('../services/registrationKeyService');
       await registrationKeyService.revokeKey(id);
 
@@ -112,7 +118,7 @@ export class AdminController {
       });
     } catch (error) {
       console.error('Revoke registration key error:', error);
-      res.status(400).json({
+      res.status(500).json({
         error: error instanceof Error ? error.message : 'Failed to revoke registration key',
       });
     }
@@ -135,28 +141,41 @@ export class AdminController {
           };
 
           try {
-            // Buscar estatísticas reais do tenant (se schema existir)
-            const statsQuery = `
-              SELECT 
-                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.clients WHERE is_active = true), 0) as clients,
-                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.projects WHERE is_active = true), 0) as projects,
-                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.tasks WHERE is_active = true), 0) as tasks,
-                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.transactions WHERE is_active = true), 0) as transactions,
-                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.invoices WHERE is_active = true), 0) as invoices
-            `;
-
+            // First check if schema exists before querying
             const { TenantDatabase } = await import('../config/database');
             const tenantDB = new TenantDatabase(tenant.id);
-            const result = await tenantDB.query(statsQuery);
+            
+            const schemaCheckQuery = `
+              SELECT EXISTS(
+                SELECT 1 FROM information_schema.schemata 
+                WHERE schema_name = $1
+              ) as schema_exists
+            `;
+            
+            const schemaCheck = await tenantDB.query(schemaCheckQuery, [tenant.schemaName]);
+            
+            if (schemaCheck?.rows?.[0]?.schema_exists) {
+              // Only query stats if schema exists
+              const statsQuery = `
+                SELECT 
+                  COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.clients WHERE is_active = true), 0) as clients,
+                  COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.projects WHERE is_active = true), 0) as projects,
+                  COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.tasks WHERE is_active = true), 0) as tasks,
+                  COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.transactions WHERE is_active = true), 0) as transactions,
+                  COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.invoices WHERE is_active = true), 0) as invoices
+              `;
 
-            if (result && result.rows && result.rows[0]) {
-              stats = {
-                clients: parseInt(result.rows[0].clients || '0'),
-                projects: parseInt(result.rows[0].projects || '0'),
-                tasks: parseInt(result.rows[0].tasks || '0'),
-                transactions: parseInt(result.rows[0].transactions || '0'),
-                invoices: parseInt(result.rows[0].invoices || '0'),
-              };
+              const result = await tenantDB.query(statsQuery);
+
+              if (result && result.rows && result.rows[0]) {
+                stats = {
+                  clients: parseInt(result.rows[0].clients || '0'),
+                  projects: parseInt(result.rows[0].projects || '0'),
+                  tasks: parseInt(result.rows[0].tasks || '0'),
+                  transactions: parseInt(result.rows[0].transactions || '0'),
+                  invoices: parseInt(result.rows[0].invoices || '0'),
+                };
+              }
             }
           } catch (statsError) {
             console.warn(`Error fetching stats for tenant ${tenant.id}:`, statsError);

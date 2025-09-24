@@ -6,20 +6,18 @@ import { createApp } from "./src/app";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "0.0.0.0", // permite conexões externas
+    host: "0.0.0.0",
     port: 5000,
     cors: true,
     hmr: {
-      host: "0.0.0.0", // ajustado para aceitar HMR de qualquer host
-      port: 5000,
+      host: "0.0.0.0",
+      port: 5001, // Use different port for HMR to avoid conflicts
+      clientPort: 5001,
     },
-    allowedHosts: [
-      "8a85e153-2921-423e-b2f7-467f10582209-00-14tack9nfpjwm.janeway.replit.dev", // adicione o host específico aqui
-      "*", // ou "*" para permitir todos os hosts (cuidado em produção)
-    ],
+    allowedHosts: "all", // Allow all hosts in development
     fs: {
-      allow: ["./client", "./shared", "./admin"],
-      deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],
+      allow: ["./client", "./shared", "./admin", "./src", "./"],
+      deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**"],
     },
   },
   build: {

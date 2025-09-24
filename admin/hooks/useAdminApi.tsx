@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface GlobalMetrics {
   tenants: {
@@ -148,15 +148,15 @@ export function useAdminApi() {
     }
   };
 
-  const getRegistrationKeys = async (): Promise<RegistrationKey[]> => {
-    setIsLoading(true);
+  const getRegistrationKeys = useCallback(async () => {
     try {
-      const data = await apiCall('/keys');
-      return data.keys || [];
-    } finally {
-      setIsLoading(false);
+      const response = await apiCall('/keys');
+      return response.keys || [];
+    } catch (error) {
+      console.error('Error getting registration keys:', error);
+      throw error;
     }
-  };
+  }, []);
 
   const createRegistrationKey = async (keyData: {
     accountType: string;
@@ -208,7 +208,7 @@ export function useAdminApi() {
   };
 
 
-  const revokeRegistrationKey = async (keyId: string): Promise<void> => {
+  const revokeRegistrationKey = useCallback(async (keyId: string): Promise<void> => {
     setIsLoading(true);
     try {
       await apiCall(`/keys/${keyId}/revoke`, {
@@ -217,7 +217,14 @@ export function useAdminApi() {
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  // Helper function to get the token, assuming it's stored similarly to admin_access_token
+  // This should be defined or imported if it's not globally available
+  const getToken = (): string | null => {
+    return localStorage.getItem('admin_access_token');
   };
+
 
   return {
     isLoading,

@@ -8,9 +8,9 @@ const router = Router();
 router.use(authenticateAdminToken);
 
 // Registration Keys
-router.post('/keys', authenticateAdminToken, adminController.createRegistrationKey);
-router.get('/keys', authenticateAdminToken, adminController.getRegistrationKeys);
-router.patch('/keys/:keyId/revoke', authenticateAdminToken, adminController.revokeRegistrationKey);
+router.post('/keys', adminController.createRegistrationKey);
+router.get('/keys', adminController.getRegistrationKeys);
+router.patch('/keys/:id/revoke', adminController.revokeRegistrationKey);
 
 // Tenant Management
 router.get('/tenants', adminController.getTenants);
