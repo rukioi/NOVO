@@ -378,6 +378,18 @@ export class Database {
     }
   }
 
+  async revokeRefreshTokenById(id: string) {
+    try {
+      await prisma.refreshToken.update({
+        where: { id },
+        data: { isActive: false }
+      });
+    } catch (error) {
+      console.error('Error revoking refresh token by ID:', error);
+      throw error;
+    }
+  }
+
   // Audit logs
   async createAuditLog(logData: any) {
     try {

@@ -108,13 +108,20 @@ export class AuthService {
     
     // Get fresh user data
     const user = await database.findUserByEmail(decoded.email);
-    if (!user || !user.is_active) {
+    if (!user || !user.isActive) {
       throw new Error('User not found or inactive');
     }
 
-    // Revoke old refresh token
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
-    await database.revokeRefreshToken(tokenHash);
+    // Revoke old refresh token by finding the matching one
+    const userId = (decoded as any).userId;
+    const userTokens = await database.getActiveRefreshTokensForUser(userId);
+    
+    for (const storedToken of userTokens) {
+      if (await bcrypt.compare(refreshToken, storedToken.tokenHash)) {
+        await database.revokeRefreshTokenById(storedToken.id);
+        break;
+      }
+    }
 
     // Generate new tokens
     const tokens = await this.generateTokens(user);
@@ -143,7 +150,7 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    if (!user.is_active) {
+    if (!user.isActive) {
       throw new Error('Account is deactivated');
     }
 
@@ -170,7 +177,7 @@ export class AuthService {
       throw new Error('Invalid admin credentials');
     }
 
-    if (!admin.is_active) {
+    if (!admin.isActive) {
       throw new Error('Admin account is deactivated');
     }
 
@@ -242,7 +249,8 @@ export class AuthService {
     // Create or use existing tenant
     if (registrationKey.tenantId) {
       // Use existing tenant
-      const tenants = await database.getAllTenants();
+      const tenantsResult = await database.getAllTenants();
+      const tenants = Array.isArray(tenantsResult) ? tenantsResult : tenantsResult.rows || [];
       tenant = tenants.find(t => t.id === registrationKey.tenantId);
       if (!tenant) {
         throw new Error('Associated tenant not found');
