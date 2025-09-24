@@ -91,14 +91,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Normalize account type for consistent checking
   const normalizeAccountType = (type: string) => {
-    const lowerType = type.toLowerCase();
-    if (lowerType.includes('composite') || lowerType.includes('composta') || type === 'COMPOSTA') {
+    if (!type) return 'SIMPLES';
+    
+    const upperType = type.toUpperCase();
+    
+    // Check for variations of account types
+    if (upperType === 'COMPOSTA' || upperType === 'COMPOSITE' || upperType === 'COMPOSITE_ACCOUNT') {
       return 'COMPOSTA';
     }
-    if (lowerType.includes('managerial') || lowerType.includes('gerencial') || type === 'GERENCIAL') {
+    if (upperType === 'GERENCIAL' || upperType === 'MANAGERIAL' || upperType === 'MANAGERIAL_ACCOUNT') {
       return 'GERENCIAL';
     }
-    return 'SIMPLES';
+    if (upperType === 'SIMPLES' || upperType === 'SIMPLE' || upperType === 'SIMPLE_ACCOUNT') {
+      return 'SIMPLES';
+    }
+    
+    return 'SIMPLES'; // Default fallback
   };
 
   const accountType = normalizeAccountType(rawAccountType);
@@ -108,6 +116,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     raw: rawAccountType,
     normalized: accountType,
     user: user,
+    shouldShowCashFlow: accountType === 'COMPOSTA' || accountType === 'GERENCIAL',
     timestamp: new Date().toISOString()
   });
 
@@ -179,12 +188,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <nav className="flex-1 p-4 space-y-2">
           {navigation.filter((item) => {
             // Apply access restrictions based on account type
-            if (item.href === '/fluxo-caixa' || item.href === '/recebiveis') {
-              // Only COMPOSTA and GERENCIAL can access financial modules
+            if (item.href === '/fluxo-caixa') {
+              // Cash Flow: Only COMPOSTA and GERENCIAL can access
+              const hasAccess = accountType === 'COMPOSTA' || accountType === 'GERENCIAL';
+              console.log('🔍 Cash Flow Access Check:', {
+                accountType,
+                hasAccess,
+                href: item.href
+              });
+              return hasAccess;
+            }
+            if (item.href === '/recebiveis') {
+              // Receivables: Only COMPOSTA and GERENCIAL can access
               return accountType === 'COMPOSTA' || accountType === 'GERENCIAL';
             }
             if (item.href === '/configuracoes') {
-              // Only GERENCIAL can access settings
+              // Settings: Only GERENCIAL can access
               return accountType === 'GERENCIAL';
             }
             // All other routes are accessible to all account types

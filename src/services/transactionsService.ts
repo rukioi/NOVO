@@ -486,11 +486,11 @@ export class TransactionsService {
   /**
    * Busca transações por categoria (para relatórios)
    */
-  async getTransactionsByCategory(tenantId: string, type?: 'income' | 'expense', dateFrom?: string): Promise<{
-    categoryId: string;
+  async getTransactionsByCategory(tenantId: string, userId?: string, dateFrom?: string): Promise<{
     category: string;
-    amount: number;
-    count: number;
+    type: string;
+    totalAmount: number;
+    transactionCount: number;
   }[]> {
     try {
       await this.initializeTables(tenantId);
@@ -499,36 +499,31 @@ export class TransactionsService {
         SELECT 
           category,
           type,
-          SUM(amount) as total,
-          COUNT(*) as count
+          SUM(amount) as total_amount,
+          COUNT(*) as transaction_count
         FROM ${this.tableName} 
         WHERE is_active = TRUE
       `;
 
       const params: any[] = [];
-      let paramIndex = 1;
-
-      if (type) {
-        query += ` AND type = $${paramIndex}`;
-        params.push(type);
-        paramIndex++;
-      }
 
       if (dateFrom) {
-        query += ` AND created_at >= $${paramIndex}`;
+        query += ` AND created_at >= $${params.length + 1}::timestamp`;
         params.push(dateFrom);
-        paramIndex++;
       }
 
-      query += ` GROUP BY category, type ORDER BY total DESC`;
+      query += `
+        GROUP BY category, type
+        ORDER BY total_amount DESC
+      `;
 
       const result = await tenantDB.executeInTenantSchema(tenantId, query, params);
 
       return result.map((row: any) => ({
         category: row.category,
         type: row.type,
-        total: parseFloat(row.total || '0'),
-        count: parseInt(row.count || '0')
+        totalAmount: parseFloat(row.total_amount || '0'),
+        transactionCount: parseInt(row.transaction_count || '0')
       }));
     } catch (error) {
       console.error('Error getting transactions by category:', error);
@@ -536,7 +531,7 @@ export class TransactionsService {
     }
   }
 
-  
+
 
   /**
    * Busca transações recorrentes que precisam ser processadas

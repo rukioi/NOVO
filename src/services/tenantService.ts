@@ -124,6 +124,7 @@ export class TenantService {
         assigned_to UUID,
         status VARCHAR(50) DEFAULT 'pending',
         priority VARCHAR(20) DEFAULT 'medium',
+        progress INTEGER DEFAULT 0,
         due_date TIMESTAMP,
         completed_at TIMESTAMP,
         tags TEXT[],
@@ -143,6 +144,7 @@ export class TenantService {
       CREATE TABLE IF NOT EXISTS "${schemaName}".transactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         type VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
+        category_id VARCHAR(255),
         category VARCHAR(255) NOT NULL,
         amount DECIMAL(15,2) NOT NULL,
         description TEXT,
@@ -153,12 +155,15 @@ export class TenantService {
         status VARCHAR(50) DEFAULT 'confirmed',
         tags TEXT[],
         is_recurring BOOLEAN DEFAULT FALSE,
+        recurring_frequency VARCHAR(20),
         recurring_config JSONB,
         attachments JSONB,
+        notes TEXT,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
-        created_by UUID
+        created_by UUID,
+        last_modified_by UUID
       )
     `;
   }

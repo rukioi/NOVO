@@ -278,24 +278,29 @@ export class DashboardService {
    * Dados do fluxo de caixa para gráficos
    */
   private async getCashFlowData(tenantId: string, dateFrom: string) {
-    const query = `
-      SELECT 
-        DATE(date) as day,
-        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
-      FROM \${schema}.transactions
-      WHERE is_active = TRUE AND date >= $1
-      GROUP BY DATE(date)
-      ORDER BY day ASC
-    `;
+    try {
+      const query = `
+        SELECT 
+          DATE(date) as day,
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+        FROM \${schema}.transactions
+        WHERE is_active = TRUE AND date >= $1::date
+        GROUP BY DATE(date)
+        ORDER BY day ASC
+      `;
 
-    const result = await tenantDB.executeInTenantSchema(tenantId, query, [dateFrom]);
-    return result.map((row: any) => ({
-      day: row.day,
-      income: parseFloat(row.income || '0'),
-      expense: parseFloat(row.expense || '0'),
-      net: parseFloat(row.income || '0') - parseFloat(row.expense || '0')
-    }));
+      const result = await tenantDB.executeInTenantSchema(tenantId, query, [dateFrom]);
+      return result.map((row: any) => ({
+        day: row.day,
+        income: parseFloat(row.income || '0'),
+        expense: parseFloat(row.expense || '0'),
+        net: parseFloat(row.income || '0') - parseFloat(row.expense || '0')
+      }));
+    } catch (error) {
+      console.error('Error getting cash flow data:', error);
+      return [];
+    }
   }
 
   /**
@@ -324,24 +329,29 @@ export class DashboardService {
    * Dados de tarefas para gráficos
    */
   private async getTasksChartData(tenantId: string, dateFrom: string) {
-    const query = `
-      SELECT 
-        status,
-        priority,
-        COUNT(*) as count,
-        AVG(progress) as avg_progress
-      FROM \${schema}.tasks
-      WHERE is_active = TRUE AND created_at >= $1
-      GROUP BY status, priority
-    `;
+    try {
+      const query = `
+        SELECT 
+          status,
+          priority,
+          COUNT(*) as count,
+          AVG(COALESCE(progress, 0)) as avg_progress
+        FROM \${schema}.tasks
+        WHERE is_active = TRUE AND created_at >= $1::timestamp
+        GROUP BY status, priority
+      `;
 
-    const result = await tenantDB.executeInTenantSchema(tenantId, query, [dateFrom]);
-    return result.map((row: any) => ({
-      status: row.status,
-      priority: row.priority,
-      count: parseInt(row.count || '0'),
-      avgProgress: parseFloat(row.avg_progress || '0')
-    }));
+      const result = await tenantDB.executeInTenantSchema(tenantId, query, [dateFrom]);
+      return result.map((row: any) => ({
+        status: row.status,
+        priority: row.priority,
+        count: parseInt(row.count || '0'),
+        avgProgress: parseFloat(row.avg_progress || '0')
+      }));
+    } catch (error) {
+      console.error('Error getting tasks chart data:', error);
+      return [];
+    }
   }
 }
 
