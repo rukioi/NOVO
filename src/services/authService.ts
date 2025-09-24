@@ -126,7 +126,10 @@ export class AuthService {
     // Generate new tokens
     const tokens = await this.generateTokens(user);
     
-    return { user, tokens };
+    // Convert any BigInt fields to strings for JSON serialization
+    const serializedUser = this.serializeBigIntFields(user);
+    
+    return { user: serializedUser, tokens };
   }
 
   async revokeAllTokens(userId: string, isAdmin: boolean = false) {
@@ -164,10 +167,13 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     
-    // Remove password from response
+    // Remove password from response and convert BigInt fields
     const { password: _, ...userWithoutPassword } = user;
     
-    return { user: userWithoutPassword, tokens };
+    // Convert any BigInt fields to strings for JSON serialization
+    const serializedUser = this.serializeBigIntFields(userWithoutPassword);
+    
+    return { user: serializedUser, tokens };
   }
 
   async loginAdmin(email: string, password: string) {
@@ -191,10 +197,13 @@ export class AuthService {
 
     const tokens = await this.generateTokens(admin);
     
-    // Remove password from response
+    // Remove password from response and convert BigInt fields
     const { password: _, ...adminWithoutPassword } = admin;
     
-    return { user: adminWithoutPassword, tokens };
+    // Convert any BigInt fields to strings for JSON serialization
+    const serializedAdmin = this.serializeBigIntFields(adminWithoutPassword);
+    
+    return { user: serializedAdmin, tokens };
   }
 
   async registerUser(email: string, password: string, name: string, key: string) {
@@ -303,10 +312,38 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     
-    // Remove password from response
+    // Remove password from response and convert BigInt fields
     const { password: _, ...userWithoutPassword } = user;
     
-    return { user: userWithoutPassword, tokens, isNewTenant };
+    // Convert any BigInt fields to strings for JSON serialization
+    const serializedUser = this.serializeBigIntFields(userWithoutPassword);
+    
+    return { user: serializedUser, tokens, isNewTenant };
+  }
+
+  // Helper method to convert BigInt fields to strings
+  private serializeBigIntFields(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (typeof obj === 'bigint') {
+      return obj.toString();
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.serializeBigIntFields(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const serialized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        serialized[key] = this.serializeBigIntFields(value);
+      }
+      return serialized;
+    }
+    
+    return obj;
   }
 
   // Helper method to update tenant user count
