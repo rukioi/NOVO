@@ -50,7 +50,8 @@ export class AdminController {
       res.status(201).json({
         message: 'Registration key created successfully',
         key, // Return the plain key only once
-        metadata: {
+        data: {
+          key,
           accountType: validatedData.accountType,
           usesAllowed: validatedData.usesAllowed || 1,
           singleUse: validatedData.singleUse ?? true,
@@ -74,6 +75,23 @@ export class AdminController {
 
       const { registrationKeyService } = await import('../services/registrationKeyService');
       const keys = await registrationKeyService.listKeys(tenantId);
+
+      // Transform the data to match the expected format
+      const formattedKeys = keys.map(key => ({
+        id: key.id,
+        key: '***HIDDEN***', // Never return the actual key
+        accountType: key.account_type,
+        isUsed: key.uses_left === 0,
+        isRevoked: key.revoked,
+        usedBy: key.used_logs ? JSON.parse(key.used_logs)[0]?.email : null,
+        usedAt: key.used_logs ? JSON.parse(key.used_logs)[0]?.usedAt : null,
+        createdAt: key.created_at,
+        expiresAt: key.expires_at,
+        usesAllowed: key.uses_allowed,
+        usesLeft: key.uses_left,
+      }));
+
+      res.json(formattedKeys);
 
       // Mapear para formato esperado pelo frontend
       const formattedKeys = keys.map(key => ({

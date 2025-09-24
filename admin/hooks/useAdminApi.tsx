@@ -158,30 +158,30 @@ export function useAdminApi() {
     }
   };
 
-  const createRegistrationKey = async (keyData: any): Promise<{ key: string }> => {
-    const token = localStorage.getItem('admin_access_token');
-    if (!token) throw new Error('No admin token found');
+  const createRegistrationKey = async (keyData: {
+    accountType: string;
+    tenantId?: string;
+    usesAllowed?: number;
+    expiresAt?: Date;
+    singleUse?: boolean;
+  }): Promise<{ key: string }> => {
+    setIsLoading(true);
 
     console.log('Creating registration key with data:', keyData);
 
-    // Ensure proper data formatting
-    const formattedKeyData = {
-      accountType: keyData.accountType,
-      usesAllowed: keyData.usesAllowed || 1,
-      singleUse: keyData.singleUse !== false, // default to true
-      ...(keyData.tenantId && { tenantId: keyData.tenantId }),
-      ...(keyData.expiresAt && { expiresAt: keyData.expiresAt }),
-    };
-
-    console.log('Formatted key data:', formattedKeyData);
-
-    const response = await fetch('/api/admin/registration-keys', {
+    const response = await fetch('/api/admin/keys', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${getToken()}`,
       },
-      body: JSON.stringify(formattedKeyData),
+      body: JSON.stringify({
+        accountType: keyData.accountType,
+        tenantId: keyData.tenantId,
+        usesAllowed: keyData.usesAllowed || 1,
+        singleUse: keyData.singleUse ?? true,
+        expiresAt: keyData.expiresAt?.toISOString(),
+      }),
     });
 
     console.log('Create key response status:', response.status);
@@ -200,7 +200,11 @@ export function useAdminApi() {
 
     const result = await response.json();
     console.log('Registration key created successfully:', result);
-    return result;
+
+    // Return the key from the correct location in the response
+    return {
+      key: result.key || result.data?.key || 'Key not found in response'
+    };
   };
 
 

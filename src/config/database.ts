@@ -257,6 +257,7 @@ export class Database {
           ]
         }
       });
+      console.log('Found valid registration keys:', keys.length);
       return keys;
     } catch (error) {
       console.error('Error finding valid registration keys:', error);

@@ -185,13 +185,29 @@ export class AuthService {
   async registerUser(email: string, password: string, name: string, key: string) {
     // Validate registration key
     const validKeys = await database.findValidRegistrationKeys();
-    const registrationKey = validKeys.find(k => 
-      k.key_hash && bcrypt.compareSync(key, k.key_hash)
-    );
+    console.log('Available keys:', validKeys.length);
+    
+    let registrationKey = null;
+    
+    // Try to find a matching key by comparing the plain key with stored hashes
+    for (const validKey of validKeys) {
+      try {
+        if (validKey.key_hash && await bcrypt.compare(key, validKey.key_hash)) {
+          registrationKey = validKey;
+          break;
+        }
+      } catch (error) {
+        console.error('Error comparing key hash:', error);
+        continue;
+      }
+    }
 
     if (!registrationKey) {
+      console.log('Registration key not found. Provided key:', key.substring(0, 8) + '...');
       throw new Error('Invalid or expired registration key');
     }
+
+    console.log('Valid registration key found:', registrationKey.id);
 
     // Check if user already exists
     const existingUser = await database.findUserByEmail(email);

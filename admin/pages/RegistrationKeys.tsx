@@ -70,7 +70,11 @@ export function AdminRegistrationKeys() {
   const handleCreateKey = async (accountType: string) => {
     try {
       setError(null);
-      const newKey = await createRegistrationKey(accountType);
+      const newKey = await createRegistrationKey({
+        accountType,
+        usesAllowed: 1,
+        singleUse: true,
+      });
       setSuccess(`Registration key created successfully: ${newKey.key}`);
       setIsCreateDialogOpen(false);
       await loadKeys();
