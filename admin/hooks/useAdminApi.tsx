@@ -164,13 +164,24 @@ export function useAdminApi() {
 
     console.log('Creating registration key with data:', keyData);
 
+    // Ensure proper data formatting
+    const formattedKeyData = {
+      accountType: keyData.accountType,
+      usesAllowed: keyData.usesAllowed || 1,
+      singleUse: keyData.singleUse !== false, // default to true
+      ...(keyData.tenantId && { tenantId: keyData.tenantId }),
+      ...(keyData.expiresAt && { expiresAt: keyData.expiresAt }),
+    };
+
+    console.log('Formatted key data:', formattedKeyData);
+
     const response = await fetch('/api/admin/registration-keys', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(keyData),
+      body: JSON.stringify(formattedKeyData),
     });
 
     console.log('Create key response status:', response.status);

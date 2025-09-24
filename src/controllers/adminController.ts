@@ -28,9 +28,9 @@ export class AdminController {
       const createKeySchema = z.object({
         tenantId: z.string().uuid().optional(),
         accountType: z.enum(['SIMPLES', 'COMPOSTA', 'GERENCIAL']),
-        usesAllowed: z.number().int().min(1).optional(),
+        usesAllowed: z.number().int().min(1).optional().default(1),
         expiresAt: z.string().datetime().optional(),
-        singleUse: z.boolean().optional(),
+        singleUse: z.boolean().optional().default(true),
       });
 
       const validatedData = createKeySchema.parse(req.body);

@@ -91,7 +91,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("admin_refresh_token");
     
     // Mock authentication for development
-    if (email === "admin@legalsaas.com" && password === "admin123") {
+    if (email === "admin@legalsaas.com" && password === "admin123456") {
       const mockUser = {
         id: "admin-1",
         email: "admin@legalsaas.com",

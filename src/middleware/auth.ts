@@ -34,6 +34,12 @@ export const authenticateAdminToken = async (
   const authHeader = req.headers.authorization;
   const token = authHeader?.split(' ')[1];
 
+  console.log('Admin auth attempt:', {
+    hasAuthHeader: !!authHeader,
+    hasToken: !!token,
+    tokenPreview: token ? token.substring(0, 20) + '...' : 'none'
+  });
+
   if (!token) {
     return res.status(401).json({ 
       error: 'Admin access token required',
@@ -43,9 +49,11 @@ export const authenticateAdminToken = async (
 
   try {
     const decoded = await authService.verifyAccessToken(token);
+    console.log('Token decoded successfully:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
 
     // Verify this is an admin user (has role)
     if (!decoded.role) {
+      console.log('User has no admin role');
       return res.status(401).json({ 
         error: 'Admin access required',
         code: 'ADMIN_AUTH_002' 

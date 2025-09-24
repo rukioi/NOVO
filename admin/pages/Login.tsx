@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +24,7 @@ export function AdminLogin() {
 
     try {
       console.log('Admin login attempt:', formData.email);
-      
+
       await login(formData.email, formData.password);
       navigate('/admin/dashboard');
     } catch (err) {
@@ -42,7 +41,7 @@ export function AdminLogin() {
   const handleAutoFill = () => {
     setFormData({
       email: 'admin@legalsaas.com',
-      password: 'admin123'
+      password: 'admin123456'
     });
     setError('');
   };
