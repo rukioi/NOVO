@@ -24,6 +24,14 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAdminApi } from '../hooks/useAdminApi';
 
+interface Tenant {
+  id: string;
+  name: string;
+  isActive: boolean;
+  userCount: number;
+  maxUsers: number;
+}
+
 interface RegistrationKeyFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,9 +62,10 @@ export function RegistrationKeyForm({ open, onOpenChange, onSuccess }: Registrat
   const loadTenants = async () => {
     try {
       const data = await getTenants();
-      setTenants(data);
+      setTenants(data || []);
     } catch (error) {
       console.error('Failed to load tenants:', error);
+      setTenants([]);
     }
   };
 
@@ -64,10 +73,15 @@ export function RegistrationKeyForm({ open, onOpenChange, onSuccess }: Registrat
     e.preventDefault();
     setError('');
 
+    if (!formData.tenantId) {
+      setError('Please select a tenant');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const result = await createRegistrationKey({
-        tenantId: formData.tenantId || undefined,
+        tenantId: formData.tenantId,
         accountType: formData.accountType as any,
         usesAllowed: formData.usesAllowed,
         expiresAt: formData.expiresAt,
@@ -207,20 +221,29 @@ export function RegistrationKeyForm({ open, onOpenChange, onSuccess }: Registrat
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tenantId">Assign to Tenant (Optional)</Label>
-            <Select value={formData.tenantId} onValueChange={(value) => handleInputChange('tenantId', value)}>
+            <Label htmlFor="tenantId">Assign to Tenant</Label>
+            <Select value={formData.tenantId} onValueChange={(value) => handleInputChange('tenantId', value)} required>
               <SelectTrigger>
-                <SelectValue placeholder="Create new tenant" />
+                <SelectValue placeholder="Select a tenant" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Create New Tenant</SelectItem>
                 {tenants.map((tenant) => (
                   <SelectItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
+                    <div className="flex items-center justify-between w-full">
+                      <span>{tenant.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {tenant.userCount}/{tenant.maxUsers} users
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {tenants.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No tenants available. Create a tenant first.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

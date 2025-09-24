@@ -89,6 +89,8 @@ export class AdminController {
         expiresAt: key.expires_at,
         usesAllowed: key.uses_allowed,
         usesLeft: key.uses_left,
+        tenantId: key.tenant_id,
+        tenantName: key.tenant?.name || 'Unknown Tenant',
       }));
 
       res.json(formattedKeys);

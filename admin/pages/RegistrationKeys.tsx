@@ -32,6 +32,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAdminApi } from '../hooks/useAdminApi';
+import { RegistrationKeyForm } from '../components/RegistrationKeyForm';
 
 interface RegistrationKey {
   id: string;
@@ -43,6 +44,8 @@ interface RegistrationKey {
   usedAt?: string;
   createdAt: string;
   expiresAt?: string;
+  tenantId: string;
+  tenantName: string;
 }
 
 export function AdminRegistrationKeys() {
@@ -82,22 +85,7 @@ export function AdminRegistrationKeys() {
     }
   };
 
-  const handleCreateKey = async (accountType: string) => {
-    try {
-      setError(null);
-      const newKey = await createRegistrationKey({
-        accountType,
-        usesAllowed: 1,
-        singleUse: true,
-      });
-      setSuccess(`Registration key created successfully: ${newKey.key}`);
-      setIsCreateDialogOpen(false);
-      await loadKeys();
-    } catch (err) {
-      console.error('Failed to create key:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create registration key');
-    }
-  };
+  
 
   const handleRevokeKey = async (keyId: string) => {
     if (!confirm('Are you sure you want to revoke this registration key?')) {
@@ -155,51 +143,10 @@ export function AdminRegistrationKeys() {
               Manage registration keys for new accounts
             </p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Key
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Registration Key</DialogTitle>
-                <DialogDescription>
-                  Choose the account type for the new registration key
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Button
-                  onClick={() => handleCreateKey('SIMPLES')}
-                  className="w-full justify-start"
-                  variant="outline"
-                  disabled={isLoading}
-                >
-                  <Key className="h-4 w-4 mr-2" />
-                  Conta Simples
-                </Button>
-                <Button
-                  onClick={() => handleCreateKey('COMPOSTA')}
-                  className="w-full justify-start"
-                  variant="outline"
-                  disabled={isLoading}
-                >
-                  <Key className="h-4 w-4 mr-2" />
-                  Conta Composta
-                </Button>
-                <Button
-                  onClick={() => handleCreateKey('GERENCIAL')}
-                  className="w-full justify-start"
-                  variant="outline"
-                  disabled={isLoading}
-                >
-                  <Key className="h-4 w-4 mr-2" />
-                  Conta Gerencial
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Key
+          </Button>
         </div>
 
         {/* Alerts */}
@@ -242,6 +189,7 @@ export function AdminRegistrationKeys() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Key</TableHead>
+                    <TableHead>Tenant</TableHead>
                     <TableHead>Account Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Used By</TableHead>
@@ -265,6 +213,10 @@ export function AdminRegistrationKeys() {
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{key.tenantName}</div>
+                        <div className="text-xs text-gray-500 font-mono">{key.tenantId}</div>
                       </TableCell>
                       <TableCell>{getAccountTypeBadge(key.accountType)}</TableCell>
                       <TableCell>{getStatusBadge(key)}</TableCell>
@@ -305,6 +257,12 @@ export function AdminRegistrationKeys() {
             )}
           </CardContent>
         </Card>
+
+        <RegistrationKeyForm
+          open={isCreateDialogOpen}
+          onOpenChange={setIsCreateDialogOpen}
+          onSuccess={loadKeys}
+        />
       </div>
     </AdminLayout>
   );

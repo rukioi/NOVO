@@ -95,7 +95,7 @@ export function useAdminApi() {
     }
   };
 
-  const getTenants = async (): Promise<Tenant[]> => {
+  const getTenants = useCallback(async (): Promise<Tenant[]> => {
     setIsLoading(true);
     try {
       const data = await apiCall('/tenants');
@@ -103,7 +103,7 @@ export function useAdminApi() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const createTenant = async (tenantData: {
     name: string;
@@ -158,7 +158,7 @@ export function useAdminApi() {
     }
   }, []);
 
-  const createRegistrationKey = async (keyData: {
+  const createRegistrationKey = useCallback(async (keyData: {
     accountType: string;
     tenantId?: string;
     usesAllowed?: number;
@@ -169,22 +169,23 @@ export function useAdminApi() {
 
     console.log('Creating registration key with data:', keyData);
 
+    const payload = {
+      ...keyData,
+      expiresAt: keyData.expiresAt?.toISOString(),
+    };
+
+    console.log('Sending payload:', payload);
+
     const response = await fetch('/api/admin/keys', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${getToken()}`,
       },
-      body: JSON.stringify({
-        accountType: keyData.accountType,
-        tenantId: keyData.tenantId,
-        usesAllowed: keyData.usesAllowed || 1,
-        singleUse: keyData.singleUse ?? true,
-        expiresAt: keyData.expiresAt?.toISOString(),
-      }),
+      body: JSON.stringify(payload),
     });
 
-    console.log('Create key response status:', response.status);
+    console.log('Response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -205,7 +206,7 @@ export function useAdminApi() {
     return {
       key: result.key || result.data?.key || 'Key not found in response'
     };
-  };
+  }, []);
 
 
   const revokeRegistrationKey = useCallback(async (keyId: string): Promise<void> => {

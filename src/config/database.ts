@@ -216,7 +216,14 @@ export class Database {
   async getAllRegistrationKeys() {
     try {
       const keys = await prisma.registrationKey.findMany({
-        include: { tenant: { select: { name: true } } },
+        include: { 
+          tenant: { 
+            select: { 
+              id: true,
+              name: true 
+            } 
+          } 
+        },
         orderBy: { createdAt: 'desc' }
       });
       return keys;

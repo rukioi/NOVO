@@ -11,6 +11,7 @@ import transactionsRoutes from './routes/transactions';
 import invoicesRoutes from './routes/invoices';
 import adminRoutes from './routes/admin';
 import adminAuthRoutes from './routes/adminAuth';
+import adminApiConfigRoutes from './routes/adminApiConfig';
 import notificationsRoutes from './routes/notifications';
 import publicationsRoutes from './routes/publications';
 
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/admin/auth', adminAuthRoutes);
+  app.use('/api/admin/api-configs', adminApiConfigRoutes);
   app.use('/api/notifications', notificationsRoutes);
   app.use('/api/publications', publicationsRoutes);
 
