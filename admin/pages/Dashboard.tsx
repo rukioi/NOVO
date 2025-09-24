@@ -14,8 +14,10 @@ import {
   CheckCircle,
   Clock,
   DollarSign,
+  RefreshCw, // Import RefreshCw for the refresh button
 } from 'lucide-react';
 import { useAdminApi, GlobalMetrics } from '../hooks/useAdminApi';
+import { cn } from '@/lib/utils'; // Assuming cn is available for utility classes
 
 export function AdminDashboard() {
   const { getGlobalMetrics, isLoading } = useAdminApi();
@@ -33,7 +35,14 @@ export function AdminDashboard() {
       setMetrics(data);
     } catch (err) {
       console.error('Failed to load metrics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      // Check if the error is an object with a 'message' property or a string
+      if (err && typeof err === 'object' && 'message' in err) {
+        setError(err.message as string);
+      } else if (typeof err === 'string') {
+        setError(err);
+      } else {
+        setError('Failed to load dashboard data');
+      }
     }
   };
 
@@ -70,6 +79,16 @@ export function AdminDashboard() {
     return (
       <AdminLayout>
         <div className="space-y-6 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">System overview and global metrics</p>
+            </div>
+            <Button onClick={loadMetrics} disabled={isLoading} variant="outline" className="shadow-sm">
+              <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -83,68 +102,86 @@ export function AdminDashboard() {
     );
   }
 
+  // Updated error handling block
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="p-6">
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg shadow-sm">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              <div>
+                <strong className="font-bold">Error: </strong>
+                <span className="block sm:inline">{error}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">
-              System overview and global metrics
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">System overview and global metrics</p>
           </div>
-          <Button onClick={loadMetrics} variant="outline">
-            <Activity className="h-4 w-4 mr-2" />
+          <Button onClick={loadMetrics} disabled={isLoading} variant="outline" className="shadow-sm">
+            <RefreshCw className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
             Refresh
           </Button>
         </div>
 
-        {/* Error Alert */}
-        {error && (
+        {/* Error Alert - This block is now handled by the earlier return statement */}
+        {/* {error && (
           <Alert className="border-red-500/50 bg-red-50 dark:bg-red-950/30">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-red-700 dark:text-red-400">
               {error}
             </AlertDescription>
           </Alert>
-        )}
+        )} */}
 
         {/* Metrics Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Tenants</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Active Tenants</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics?.tenants.active || 0}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.tenants.active || 0}</div>
               <p className="text-xs text-muted-foreground">
                 {metrics?.tenants.total || 0} total
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Total Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics?.users.total || 0}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{metrics?.users.total || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Across all tenants
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Registration Keys</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">Registration Keys</CardTitle>
               <Key className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {metrics?.registrationKeys.reduce((sum, key) => sum + key.count, 0) || 0}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -153,13 +190,13 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">System Health</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">System Health</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">Healthy</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">Healthy</div>
               <p className="text-xs text-muted-foreground">
                 All systems operational
               </p>
@@ -169,16 +206,16 @@ export function AdminDashboard() {
 
         {/* Registration Keys Breakdown */}
         {metrics?.registrationKeys && metrics.registrationKeys.length > 0 && (
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Registration Keys by Account Type</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-gray-100">Registration Keys by Account Type</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 {metrics.registrationKeys.map((keyType) => (
-                  <div key={keyType.accountType} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div key={keyType.accountType} className="flex items-center justify-between p-3 border rounded-lg shadow-sm bg-gray-50 dark:bg-gray-900/30 dark:border-gray-700">
                     <div>
-                      <p className="font-medium">{keyType.accountType}</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{keyType.accountType}</p>
                       <p className="text-sm text-muted-foreground">Account Type</p>
                     </div>
                     <Badge variant="secondary" className="text-lg px-3 py-1">
@@ -192,9 +229,9 @@ export function AdminDashboard() {
         )}
 
         {/* Recent Activity */}
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Recent System Activity</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Recent System Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -202,17 +239,17 @@ export function AdminDashboard() {
                 metrics.recentActivity.map((activity) => (
                   <div
                     key={activity.id}
-                    className={`p-3 border-l-4 rounded-r-lg ${getActivityColor(activity.level)}`}
+                    className={`p-3 border-l-4 rounded-lg ${getActivityColor(activity.level)} shadow-sm`}
                   >
                     <div className="flex items-start space-x-3">
                       {getActivityIcon(activity.level)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{activity.message}</p>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{activity.message}</p>
+                        <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1 flex-wrap">
                           {activity.tenantName && (
-                            <span>Tenant: {activity.tenantName}</span>
+                            <span className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">Tenant: {activity.tenantName}</span>
                           )}
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           <span>{new Date(activity.createdAt).toLocaleString()}</span>
                         </div>
                       </div>

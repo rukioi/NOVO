@@ -43,10 +43,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       // Handle mock token
       if (token.startsWith("mock-admin-token")) {
+        console.log('Using mock admin token');
         const mockUser = {
           id: "admin-1",
           email: "admin@legalsaas.com",
-          name: "Admin User",
+          name: "Administrator",
           role: "admin" as const,
         };
         setUser(mockUser);

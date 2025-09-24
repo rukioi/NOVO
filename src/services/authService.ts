@@ -33,7 +33,7 @@ export class AuthService {
     };
 
     const accessToken = jwt.sign(payload, this.accessTokenSecret, { 
-      expiresIn: process.env.JWT_ACCESS_EXPIRES || '15m',
+      expiresIn: process.env.JWT_ACCESS_EXPIRES || '24h',
       issuer: 'legalsaas',
       audience: 'legalsaas-users'
     });
