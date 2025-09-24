@@ -27,8 +27,8 @@ export class AuthService {
       email: user.email,
       name: user.name,
       ...(user.role ? { role: user.role } : {
-        tenantId: user.tenant_id,
-        accountType: user.account_type,
+        tenantId: user.tenantId,
+        accountType: user.accountType,
       }),
     };
 
@@ -81,11 +81,19 @@ export class AuthService {
         audience: 'legalsaas-users'
       });
 
-      // Verify token exists in database and is active
-      const tokenHash = await bcrypt.hash(token, 10);
-      const storedToken = await database.findValidRefreshToken(tokenHash);
+      // Get all active refresh tokens for the user and compare
+      const userId = (decoded as any).userId;
+      const userTokens = await database.getActiveRefreshTokensForUser(userId);
       
-      if (!storedToken) {
+      let isValidToken = false;
+      for (const storedToken of userTokens) {
+        if (await bcrypt.compare(token, storedToken.tokenHash)) {
+          isValidToken = true;
+          break;
+        }
+      }
+      
+      if (!isValidToken) {
         throw new Error('Refresh token not found or expired');
       }
 

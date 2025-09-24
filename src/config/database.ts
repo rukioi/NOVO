@@ -350,6 +350,22 @@ export class Database {
     }
   }
 
+  async getActiveRefreshTokensForUser(userId: string) {
+    try {
+      const tokens = await prisma.refreshToken.findMany({
+        where: {
+          userId,
+          isActive: true,
+          expiresAt: { gt: new Date() }
+        }
+      });
+      return tokens;
+    } catch (error) {
+      console.error('Error getting active refresh tokens for user:', error);
+      return [];
+    }
+  }
+
   async revokeRefreshToken(tokenHash: string) {
     try {
       await prisma.refreshToken.updateMany({
