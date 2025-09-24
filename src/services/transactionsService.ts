@@ -536,58 +536,7 @@ export class TransactionsService {
     }
   }
 
-  /**
-   * Get transaction statistics for dashboard
-   */
-  async getTransactionsStats(tenantId: string) {
-    try {
-      await this.initializeTables(tenantId);
-
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      currentMonth.setHours(0, 0, 0, 0);
-
-      const query = `
-        SELECT 
-          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
-          SUM(CASE WHEN type = 'income' AND created_at >= $1 THEN amount ELSE 0 END) as this_month_income,
-          SUM(CASE WHEN type = 'expense' AND created_at >= $1 THEN amount ELSE 0 END) as this_month_expenses,
-          COUNT(*) as total_transactions
-        FROM ${this.tableName} 
-        WHERE is_active = TRUE
-      `;
-
-      const result = await tenantDB.executeInTenantSchema(tenantId, query, [currentMonth.toISOString()]);
-
-      if (result.length > 0) {
-        return {
-          totalIncome: parseFloat(result[0].total_income || '0'),
-          totalExpenses: parseFloat(result[0].total_expenses || '0'),
-          thisMonthIncome: parseFloat(result[0].this_month_income || '0'),
-          thisMonthExpenses: parseFloat(result[0].this_month_expenses || '0'),
-          totalTransactions: parseInt(result[0].total_transactions || '0')
-        };
-      }
-
-      return {
-        totalIncome: 0,
-        totalExpenses: 0,
-        thisMonthIncome: 0,
-        thisMonthExpenses: 0,
-        totalTransactions: 0
-      };
-    } catch (error) {
-      console.error('Error getting transaction stats:', error);
-      return {
-        totalIncome: 0,
-        totalExpenses: 0,
-        thisMonthIncome: 0,
-        thisMonthExpenses: 0,
-        totalTransactions: 0
-      };
-    }
-  }
+  
 
   /**
    * Busca transações recorrentes que precisam ser processadas

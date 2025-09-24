@@ -229,42 +229,8 @@ export class DashboardService {
     } catch (error) {
       console.error('Error getting recent activity:', error);
       throw error;
-    })
-        ]);
-
-        financialStats = {
-          revenue: transactionsStats.totalIncome,
-          expenses: transactionsStats.totalExpense,
-          balance: transactionsStats.netAmount,
-          thisMonth: {
-            revenue: transactionsStats.thisMonthIncome,
-            expenses: transactionsStats.thisMonthExpense
-          },
-          invoices: {
-            total: invoicesStats.total,
-            paid: invoicesStats.paid,
-            pending: invoicesStats.pending,
-            overdue: invoicesStats.overdue
-          }
-        };
-      }
-
-      // Publications stats (isolado por usuário)
-      publicationsStats = await publicationsService.getPublicationsStats(tenantId, userId);
-
-      return {
-        financial: financialStats,
-        clients: clientsStats,
-        projects: projectsStats,
-        tasks: {
-          total: parseInt(tasksStats.total) || 0,
-          completed: parseInt(tasksStats.completed) || 0,
-          inProgress: parseInt(tasksStats.in_progress) || 0,
-          notStarted: parseInt(tasksStats.not_started) || 0,
-          urgent: parseInt(tasksStats.urgent) || 0
-        },
-        publications: publicationsStats
-      };
+    }
+  }
     } catch (error) {
       console.error('Error getting dashboard metrics:', error);
       throw error;
