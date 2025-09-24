@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { createApp } from './app';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+const HOST = '0.0.0.0';
 
 async function startServer() {
   try {
