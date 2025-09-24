@@ -4,11 +4,11 @@ import { database } from '../config/database';
 
 // Validation schemas
 const createKeySchema = z.object({
-  tenantId: z.string().optional(),
+  tenantId: z.string().uuid().optional(),
   accountType: z.enum(['SIMPLES', 'COMPOSTA', 'GERENCIAL']),
-  usesAllowed: z.number().min(1).default(1),
-  expiresAt: z.string().optional(),
-  singleUse: z.boolean().default(true),
+  usesAllowed: z.number().int().min(1).optional(),
+  expiresAt: z.string().datetime().optional(),
+  singleUse: z.boolean().optional(),
   metadata: z.any().optional(),
 });
 
@@ -23,22 +23,29 @@ export class AdminController {
   // Registration Keys Management
   async createRegistrationKey(req: Request, res: Response) {
     try {
-      const validatedData = createKeySchema.parse(req.body);
-      const createdBy = (req as any).user?.id || 'admin';
+      console.log('Creating registration key with data:', req.body);
 
-      // Usar o serviço real para gerar a chave
+      const createKeySchema = z.object({
+        tenantId: z.string().uuid().optional(),
+        accountType: z.enum(['SIMPLES', 'COMPOSTA', 'GERENCIAL']),
+        usesAllowed: z.number().int().min(1).optional(),
+        expiresAt: z.string().datetime().optional(),
+        singleUse: z.boolean().optional(),
+      });
+
+      const validatedData = createKeySchema.parse(req.body);
+      console.log('Validated data:', validatedData);
+
       const { registrationKeyService } = await import('../services/registrationKeyService');
-      
-      const expiresAt = validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined;
-      
       const key = await registrationKeyService.generateKey({
         tenantId: validatedData.tenantId,
         accountType: validatedData.accountType,
         usesAllowed: validatedData.usesAllowed || 1,
-        expiresAt,
+        expiresAt: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
         singleUse: validatedData.singleUse ?? true,
-        metadata: validatedData.metadata || {},
-      }, createdBy);
+      }, 'admin');
+
+      console.log('Registration key created successfully:', key);
 
       res.status(201).json({
         message: 'Registration key created successfully',
@@ -53,8 +60,10 @@ export class AdminController {
       });
     } catch (error) {
       console.error('Create registration key error:', error);
-      res.status(400).json({
-        error: error instanceof Error ? error.message : 'Failed to create registration key',
+      res.status(500).json({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Failed to create registration key',
+        details: error instanceof Error ? error.stack : undefined,
       });
     }
   }
@@ -62,10 +71,10 @@ export class AdminController {
   async getRegistrationKeys(req: Request, res: Response) {
     try {
       const tenantId = req.query.tenantId as string;
-      
+
       const { registrationKeyService } = await import('../services/registrationKeyService');
       const keys = await registrationKeyService.listKeys(tenantId);
-      
+
       // Mapear para formato esperado pelo frontend
       const formattedKeys = keys.map(key => ({
         id: key.id,
@@ -93,10 +102,10 @@ export class AdminController {
   async revokeRegistrationKey(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      
+
       const { registrationKeyService } = await import('../services/registrationKeyService');
       await registrationKeyService.revokeKey(id);
-      
+
       res.json({
         message: 'Registration key revoked successfully',
       });
@@ -112,7 +121,7 @@ export class AdminController {
   async getTenants(req: Request, res: Response) {
     try {
       const tenants = await database.getAllTenants();
-      
+
       // Buscar estatísticas de cada tenant
       const tenantsWithStats = await Promise.all(
         tenants.rows.map(async (tenant: any) => {
@@ -128,24 +137,24 @@ export class AdminController {
             // Buscar estatísticas reais do tenant (se schema existir)
             const statsQuery = `
               SELECT 
-                COALESCE((SELECT COUNT(*) FROM \${schema}.clients WHERE is_active = true), 0) as clients,
-                COALESCE((SELECT COUNT(*) FROM \${schema}.projects WHERE is_active = true), 0) as projects,
-                COALESCE((SELECT COUNT(*) FROM \${schema}.tasks WHERE is_active = true), 0) as tasks,
-                COALESCE((SELECT COUNT(*) FROM \${schema}.transactions WHERE is_active = true), 0) as transactions,
-                COALESCE((SELECT COUNT(*) FROM \${schema}.invoices WHERE is_active = true), 0) as invoices
+                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.clients WHERE is_active = true), 0) as clients,
+                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.projects WHERE is_active = true), 0) as projects,
+                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.tasks WHERE is_active = true), 0) as tasks,
+                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.transactions WHERE is_active = true), 0) as transactions,
+                COALESCE((SELECT COUNT(*) FROM ${tenant.schemaName}.invoices WHERE is_active = true), 0) as invoices
             `;
-            
+
             const { TenantDatabase } = await import('../config/database');
             const tenantDB = new TenantDatabase(tenant.id);
-            const result = await tenantDB.query(statsQuery.replace('${schema}', tenant.schemaName));
-            
-            if (result && result[0]) {
+            const result = await tenantDB.query(statsQuery);
+
+            if (result && result.rows && result.rows[0]) {
               stats = {
-                clients: parseInt(result[0].clients || '0'),
-                projects: parseInt(result[0].projects || '0'),
-                tasks: parseInt(result[0].tasks || '0'),
-                transactions: parseInt(result[0].transactions || '0'),
-                invoices: parseInt(result[0].invoices || '0'),
+                clients: parseInt(result.rows[0].clients || '0'),
+                projects: parseInt(result.rows[0].projects || '0'),
+                tasks: parseInt(result.rows[0].tasks || '0'),
+                transactions: parseInt(result.rows[0].transactions || '0'),
+                invoices: parseInt(result.rows[0].invoices || '0'),
               };
             }
           } catch (statsError) {
@@ -179,10 +188,10 @@ export class AdminController {
   async createTenant(req: Request, res: Response) {
     try {
       const validatedData = createTenantSchema.parse(req.body);
-      
+
       // Gerar schema name único
       const schemaName = `tenant_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      
+
       // Criar tenant no banco
       const tenantData = {
         name: validatedData.name,
@@ -238,6 +247,9 @@ export class AdminController {
     try {
       const { id } = req.params;
 
+      // TODO: Implementar exclusão real do tenant e seu schema
+      await database.deleteTenant(id);
+
       res.json({
         message: 'Tenant deleted successfully',
       });
@@ -254,9 +266,12 @@ export class AdminController {
       const { id } = req.params;
       const updateData = req.body;
 
+      // TODO: Implementar atualização real do tenant
+      const updatedTenant = await database.updateTenant(id, updateData);
+
       res.json({
         message: 'Tenant updated successfully',
-        tenant: { id, ...updateData },
+        tenant: updatedTenant,
       });
     } catch (error) {
       console.error('Update tenant error:', error);
@@ -271,9 +286,12 @@ export class AdminController {
       const { id } = req.params;
       const { isActive } = req.body;
 
+      // TODO: Implementar atualização real do status do tenant
+      const updatedTenant = await database.toggleTenantStatus(id, isActive);
+
       res.json({
         message: 'Tenant status updated successfully',
-        tenant: { id, isActive },
+        tenant: updatedTenant,
       });
     } catch (error) {
       console.error('Toggle tenant status error:', error);
@@ -295,7 +313,7 @@ export class AdminController {
 
       // Contar tenants ativos
       const activeTenants = tenants.rows.filter((t: any) => t.isActive).length;
-      
+
       // Agrupar chaves de registro por tipo de conta
       const keysByType = registrationKeys.reduce((acc: any, key: any) => {
         const type = key.accountType;

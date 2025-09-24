@@ -55,7 +55,7 @@ export interface RegistrationKey {
 
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   const token = localStorage.getItem('admin_access_token');
-  
+
   const response = await fetch(`/api/admin${endpoint}`, {
     ...options,
     headers: {
@@ -68,14 +68,14 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   if (!response.ok) {
     const errorText = await response.text();
     let errorMessage = 'Request failed';
-    
+
     try {
       const errorData = JSON.parse(errorText);
       errorMessage = errorData.error || errorData.message || errorMessage;
     } catch {
       errorMessage = errorText || errorMessage;
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -158,24 +158,40 @@ export function useAdminApi() {
     }
   };
 
-  const createRegistrationKey = async (keyData: {
-    tenantId?: string;
-    accountType: string;
-    usesAllowed: number;
-    expiresAt?: Date;
-    singleUse: boolean;
-  }): Promise<{ key: string }> => {
-    setIsLoading(true);
-    try {
-      const data = await apiCall('/keys', {
-        method: 'POST',
-        body: JSON.stringify(keyData),
-      });
-      return { key: data.key };
-    } finally {
-      setIsLoading(false);
+  const createRegistrationKey = async (keyData: any): Promise<{ key: string }> => {
+    const token = localStorage.getItem('admin_access_token');
+    if (!token) throw new Error('No admin token found');
+
+    console.log('Creating registration key with data:', keyData);
+
+    const response = await fetch('/api/admin/registration-keys', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(keyData),
+    });
+
+    console.log('Create key response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Create key error response:', errorText);
+
+      try {
+        const error = JSON.parse(errorText);
+        throw new Error(error.message || error.error || 'Failed to create registration key');
+      } catch (parseError) {
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
     }
+
+    const result = await response.json();
+    console.log('Registration key created successfully:', result);
+    return result;
   };
+
 
   const revokeRegistrationKey = async (keyId: string): Promise<void> => {
     setIsLoading(true);

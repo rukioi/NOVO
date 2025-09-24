@@ -207,13 +207,29 @@ export class Database {
 
   async createRegistrationKey(keyData: any) {
     try {
+      console.log('Database: Creating registration key with data:', keyData);
+      
       const key = await prisma.registrationKey.create({
-        data: keyData
+        data: {
+          keyHash: keyData.keyHash,
+          tenantId: keyData.tenantId,
+          accountType: keyData.accountType,
+          usesAllowed: keyData.usesAllowed,
+          usesLeft: keyData.usesLeft,
+          singleUse: keyData.singleUse,
+          expiresAt: keyData.expiresAt,
+          metadata: keyData.metadata,
+          createdBy: keyData.createdBy,
+          usedLogs: keyData.usedLogs,
+          revoked: keyData.revoked,
+        }
       });
+      
+      console.log('Database: Registration key created with ID:', key.id);
       return key;
     } catch (error) {
-      console.error('Error creating registration key:', error);
-      throw error;
+      console.error('Database error creating registration key:', error);
+      throw new Error(`Database error: ${error instanceof Error ? error.message : 'Unknown database error'}`);
     }
   }
 

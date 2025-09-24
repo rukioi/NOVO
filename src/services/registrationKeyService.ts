@@ -13,25 +13,39 @@ export interface CreateKeyRequest {
 
 export class RegistrationKeyService {
   async generateKey(request: CreateKeyRequest, createdBy: string): Promise<string> {
-    // Generate random key
-    const key = crypto.randomBytes(32).toString('hex');
-    const keyHash = await bcrypt.hash(key, 12);
+    try {
+      console.log('Generating registration key with request:', request);
+      
+      // Generate random key
+      const key = crypto.randomBytes(32).toString('hex');
+      const keyHash = await bcrypt.hash(key, 12);
+      
+      console.log('Generated key hash, creating database record...');
 
-    // Create key record
-    await database.createRegistrationKey({
-      key_hash: keyHash,
-      tenant_id: request.tenantId,
-      account_type: request.accountType,
-      uses_allowed: request.usesAllowed || 1,
-      uses_left: request.usesAllowed || 1,
-      single_use: request.singleUse ?? true,
-      expires_at: request.expiresAt?.toISOString(),
-      metadata: request.metadata || {},
-      created_by: createdBy,
-      used_logs: [],
-    });
+      // Create key record with correct field names for Prisma
+      const keyData = {
+        keyHash,
+        tenantId: request.tenantId || null,
+        accountType: request.accountType,
+        usesAllowed: request.usesAllowed || 1,
+        usesLeft: request.usesAllowed || 1,
+        singleUse: request.singleUse ?? true,
+        expiresAt: request.expiresAt || null,
+        metadata: request.metadata || {},
+        createdBy: createdBy,
+        usedLogs: [],
+        revoked: false,
+      };
 
-    return key; // Return plain key only once
+      console.log('Creating key with data:', keyData);
+      await database.createRegistrationKey(keyData);
+      
+      console.log('Registration key created successfully');
+      return key; // Return plain key only once
+    } catch (error) {
+      console.error('Error in generateKey:', error);
+      throw new Error(`Failed to generate registration key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async listKeys(tenantId?: string) {
