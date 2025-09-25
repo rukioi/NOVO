@@ -214,6 +214,37 @@
     @apply flex flex-col h-full bg-sidebar border-r border-sidebar-border;
   }
 
+  /* Admin Panel Specific Styles */
+  .admin-panel {
+    /* Force better contrast for admin interface */
+    --slate-50: 248 250 252;
+    --slate-100: 241 245 249;
+    --slate-200: 226 232 240;
+    --slate-300: 203 213 225;
+    --slate-400: 148 163 184;
+    --slate-500: 100 116 139;
+    --slate-600: 71 85 105;
+    --slate-700: 51 65 85;
+    --slate-800: 30 41 59;
+    --slate-900: 15 23 42;
+  }
+
+  .admin-panel .text-muted-foreground {
+    @apply text-slate-600 dark:text-slate-400;
+  }
+
+  .admin-panel .bg-card {
+    @apply bg-white dark:bg-slate-800;
+  }
+
+  .admin-panel .text-card-foreground {
+    @apply text-slate-900 dark:text-white;
+  }
+
+  .admin-panel .border-border {
+    @apply border-slate-200 dark:border-slate-700;
+  }
+
   /* Status indicators for projects */
   .status-novo {
     @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;

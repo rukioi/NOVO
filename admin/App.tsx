@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
@@ -11,10 +12,10 @@ function AdminRoutes() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-400 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading admin panel...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Carregando painel administrativo...</p>
         </div>
       </div>
     );
@@ -34,7 +35,11 @@ function AdminRoutes() {
 
 export function AdminApp() {
   return (
+<<<<<<< HEAD
     <div className="admin-panel">
+=======
+    <div className="admin-panel dark">
+>>>>>>> 48a3a05 (Assistant checkpoint: Refazer frontend admin com melhor contraste e cores)
       <AdminAuthProvider>
         <AdminRoutes />
       </AdminAuthProvider>
